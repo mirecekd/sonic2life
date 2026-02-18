@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+websockets
+boto3
+python-dotenv
+strands-agents
+strands-agents-tools
+mcp
+aws-sdk-bedrock-runtime
+smithy-aws-core
+numpy
+py-vapid
+pywebpush
+uv

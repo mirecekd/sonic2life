@@ -1,0 +1,498 @@
+/* ── Reset & Base ──────────────────────────────────────────────────── */
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --bg: #0f0f13;
+    --surface: #1a1a24;
+    --text: #e4e4ef;
+    --text-dim: #8888a0;
+    --accent-idle: #3a3a50;
+    --accent-listen: #ff4d4d;
+    --accent-listen-glow: rgba(255, 77, 77, 0.35);
+    --accent-speak: #00c896;
+    --accent-speak-glow: rgba(0, 200, 150, 0.35);
+    --accent-connect: #f0a030;
+    --accent-connect-glow: rgba(240, 160, 48, 0.3);
+    --accent-tool: #7b61ff;
+    --accent-tool-glow: rgba(123, 97, 255, 0.3);
+    --btn-size: min(55vw, 220px);
+}
+
+html, body {
+    height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+}
+
+/* ── Layout ───────────────────────────────────────────────────────── */
+#app {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 16px;
+}
+
+header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 8px;
+    flex-shrink: 0;
+}
+
+header h1 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.header-icon {
+    flex-shrink: 0;
+    border-radius: 50%;
+    filter: drop-shadow(0 0 4px rgba(0, 210, 165, 0.5));
+}
+
+main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+footer {
+    flex-shrink: 0;
+    max-height: 30vh;
+}
+
+/* ── Connection badge ─────────────────────────────────────────────── */
+.status-badge {
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.status-badge.disconnected {
+    background: #2a2a35;
+    color: #888;
+}
+
+.status-badge.connecting {
+    background: rgba(240, 160, 48, 0.15);
+    color: var(--accent-connect);
+}
+
+.status-badge.connected {
+    background: rgba(0, 200, 150, 0.12);
+    color: var(--accent-speak);
+}
+
+/* ── Install button ───────────────────────────────────────────────── */
+.install-btn {
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--accent-speak);
+    background: rgba(0, 200, 150, 0.12);
+    color: var(--accent-speak);
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    transition: background 0.2s;
+    white-space: nowrap;
+}
+
+.install-btn:hover,
+.install-btn:active {
+    background: rgba(0, 200, 150, 0.25);
+}
+
+.install-btn.hidden {
+    display: none;
+}
+
+/* ── Notification Banner ──────────────────────────────────────────── */
+.notification-banner {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%) translateY(-10px);
+    width: calc(100% - 32px);
+    max-width: 420px;
+    background: linear-gradient(135deg, #1e1e30 0%, #2a2a42 100%);
+    border: 1px solid rgba(255, 77, 77, 0.3);
+    border-radius: 16px;
+    padding: 14px 44px 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 100;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 77, 77, 0.15);
+    opacity: 0;
+    transition: opacity 0.35s ease, transform 0.35s ease;
+    cursor: pointer;
+}
+
+.notification-banner.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.notification-banner.hidden {
+    display: none;
+}
+
+.notification-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.notification-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--accent-listen);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 3px;
+}
+
+.notification-body {
+    font-size: 0.9rem;
+    color: var(--text);
+    line-height: 1.4;
+    word-break: break-word;
+}
+
+.notification-dismiss {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 1.3rem;
+    cursor: pointer;
+    padding: 4px 8px;
+    line-height: 1;
+    border-radius: 8px;
+    transition: color 0.2s, background 0.2s;
+}
+
+.notification-dismiss:hover,
+.notification-dismiss:active {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.notification-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.notification-actions:empty {
+    display: none;
+}
+
+.notif-action-btn {
+    flex: 1;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    text-align: center;
+}
+
+.notif-action-btn:active {
+    transform: scale(0.95);
+}
+
+.notif-action-btn.action-confirm {
+    background: rgba(0, 200, 150, 0.2);
+    color: var(--accent-speak);
+    border: 1px solid rgba(0, 200, 150, 0.3);
+}
+
+.notif-action-btn.action-confirm:hover {
+    background: rgba(0, 200, 150, 0.3);
+}
+
+.notif-action-btn.action-skip,
+.notif-action-btn.action-dismiss {
+    background: rgba(255, 77, 77, 0.15);
+    color: var(--accent-listen);
+    border: 1px solid rgba(255, 77, 77, 0.25);
+}
+
+.notif-action-btn.action-skip:hover,
+.notif-action-btn.action-dismiss:hover {
+    background: rgba(255, 77, 77, 0.25);
+}
+
+.notif-action-btn.action-default {
+    background: rgba(136, 136, 160, 0.15);
+    color: var(--text-dim);
+    border: 1px solid rgba(136, 136, 160, 0.25);
+}
+
+.notif-action-btn.action-default:hover {
+    background: rgba(136, 136, 160, 0.25);
+}
+
+/* ── Button container ─────────────────────────────────────────────── */
+#button-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+}
+
+#status-text {
+    font-size: 0.95rem;
+    color: var(--text-dim);
+    text-align: center;
+    min-height: 1.4em;
+    transition: color 0.3s;
+}
+
+/* ── Talk button ──────────────────────────────────────────────────── */
+.talk-button {
+    position: relative;
+    width: var(--btn-size);
+    height: var(--btn-size);
+    border-radius: 50%;
+    border: none;
+    background: var(--accent-idle);
+    color: var(--text-dim);
+    cursor: pointer;
+    outline: none;
+    transition: background 0.3s, color 0.3s, transform 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+.talk-button:active:not(:disabled) {
+    transform: scale(0.96);
+}
+
+.btn-inner {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+
+.icon {
+    width: 38%;
+    height: 38%;
+    transition: opacity 0.25s;
+}
+
+.icon.hidden {
+    display: none;
+}
+
+/* ── Pulse rings ──────────────────────────────────────────────────── */
+.pulse-ring {
+    position: absolute;
+    inset: -12px;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+}
+
+.pulse-ring.ring-2 {
+    inset: -28px;
+    border-width: 2px;
+}
+
+/* ── State: LISTENING ─────────────────────────────────────────────── */
+.talk-button.listening {
+    background: var(--accent-listen);
+    color: #fff;
+    box-shadow: 0 0 40px var(--accent-listen-glow);
+}
+
+.talk-button.listening .pulse-ring {
+    border-color: var(--accent-listen);
+    opacity: 1;
+    animation: pulse-out 1.6s ease-out infinite;
+}
+
+.talk-button.listening .pulse-ring.ring-2 {
+    animation-delay: 0.4s;
+}
+
+/* ── State: AI SPEAKING ───────────────────────────────────────────── */
+.talk-button.speaking {
+    background: var(--accent-speak);
+    color: #fff;
+    box-shadow: 0 0 40px var(--accent-speak-glow);
+}
+
+.talk-button.speaking .pulse-ring {
+    border-color: var(--accent-speak);
+    opacity: 1;
+    animation: pulse-out 2s ease-out infinite;
+}
+
+.talk-button.speaking .pulse-ring.ring-2 {
+    animation-delay: 0.5s;
+}
+
+/* ── State: CONNECTING ────────────────────────────────────────────── */
+.talk-button.connecting {
+    background: var(--accent-connect);
+    color: #fff;
+    box-shadow: 0 0 30px var(--accent-connect-glow);
+}
+
+.talk-button.connecting #spinner-icon,
+.talk-button.tool-use #spinner-icon {
+    animation: spin 0.9s linear infinite;
+}
+
+/* ── State: TOOL USE ──────────────────────────────────────────────── */
+.talk-button.tool-use {
+    background: var(--accent-tool);
+    color: #fff;
+    box-shadow: 0 0 30px var(--accent-tool-glow);
+}
+
+.talk-button.tool-use .pulse-ring {
+    border-color: var(--accent-tool);
+    opacity: 1;
+    animation: pulse-out 1.2s ease-out infinite;
+}
+
+.talk-button.tool-use .pulse-ring.ring-2 {
+    animation-delay: 0.3s;
+}
+
+/* ── Animations ───────────────────────────────────────────────────── */
+@keyframes pulse-out {
+    0% {
+        transform: scale(1);
+        opacity: 0.6;
+    }
+    100% {
+        transform: scale(1.35);
+        opacity: 0;
+    }
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ── Transcript ───────────────────────────────────────────────────── */
+#transcript-container {
+    background: var(--surface);
+    border-radius: 16px;
+    padding: 14px 16px;
+    max-height: 28vh;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #333 transparent;
+}
+
+.transcript {
+    font-size: 0.85rem;
+    line-height: 1.55;
+    color: var(--text-dim);
+}
+
+.transcript .entry {
+    margin-bottom: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.transcript .entry:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.transcript .role {
+    font-weight: 600;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 2px;
+}
+
+.transcript .role.user {
+    color: var(--accent-listen);
+}
+
+.transcript .role.assistant {
+    color: var(--accent-speak);
+}
+
+.transcript .role.tool {
+    color: var(--accent-tool);
+}
+
+/* ── Scrollbar ────────────────────────────────────────────────────── */
+#transcript-container::-webkit-scrollbar {
+    width: 4px;
+}
+
+#transcript-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#transcript-container::-webkit-scrollbar-thumb {
+    background: #333;
+    border-radius: 4px;
+}
+
+/* ── Responsive ───────────────────────────────────────────────────── */
+@media (min-width: 600px) {
+    :root {
+        --btn-size: 240px;
+    }
+    #app {
+        padding: 24px;
+    }
+    header h1 {
+        font-size: 1.3rem;
+    }
+}
+
+@media (max-height: 500px) {
+    :root {
+        --btn-size: min(40vw, 160px);
+    }
+    #button-container {
+        gap: 12px;
+    }
+    footer {
+        max-height: 20vh;
+    }
+}

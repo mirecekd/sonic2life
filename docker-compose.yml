@@ -1,0 +1,14 @@
+services:
+  kecweb:
+    build: .
+    ports:
+      - "5005:5005"
+    env_file:
+      - .env
+    environment:
+      - HOST=0.0.0.0
+      - PORT=5005
+    restart: unless-stopped
+    volumes:
+      # Mount .env for local development (override the default)
+      - ./.env:/app/.env:ro
