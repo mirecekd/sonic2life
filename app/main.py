@@ -14,6 +14,8 @@ from typing import Optional
 from app.config import HOST, PORT
 from app.agent import get_tool_specs, handle_tool_call, get_mcp_runner
 from app.websocket_handler import handle_websocket
+from app.admin import router as admin_router
+from app.scheduler import start_scheduler, stop_scheduler
 from app.push import (
     get_vapid_public_key,
     add_subscription,
@@ -33,12 +35,22 @@ logging.basicConfig(
 
 app = FastAPI(title="Sonic2Life", description="Voice-first life assistant for seniors")
 
+# Mount admin panel routes
+app.include_router(admin_router)
+
 
 @app.on_event("startup")
 async def startup_event():
-    """Pre-initialize MCP client so first tool call is fast."""
+    """Pre-initialize MCP client and start scheduler."""
     import asyncio
     asyncio.create_task(_warmup_mcp())
+    await start_scheduler()
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Stop scheduler on shutdown."""
+    await stop_scheduler()
 
 
 async def _warmup_mcp():

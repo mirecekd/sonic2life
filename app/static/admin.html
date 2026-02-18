@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sonic2Life Admin</title>
+    <style>
+        :root {
+            --bg: #1a1a2e;
+            --surface: #16213e;
+            --card: #0f3460;
+            --accent: #e94560;
+            --accent2: #533483;
+            --text: #eee;
+            --text-dim: #aab;
+            --success: #4caf50;
+            --warn: #ff9800;
+            --border: #2a3a5e;
+            --input-bg: #1a2744;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        header {
+            background: var(--surface);
+            border-bottom: 2px solid var(--accent);
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        header h1 { font-size: 1.4rem; }
+        header h1 span { color: var(--accent); }
+        header a { color: var(--text-dim); text-decoration: none; font-size: .9rem; }
+        header a:hover { color: var(--text); }
+        nav {
+            background: var(--surface);
+            display: flex;
+            gap: 0;
+            overflow-x: auto;
+            border-bottom: 1px solid var(--border);
+        }
+        nav button {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            padding: .8rem 1.4rem;
+            cursor: pointer;
+            font-size: .9rem;
+            border-bottom: 3px solid transparent;
+            white-space: nowrap;
+            transition: all .2s;
+        }
+        nav button:hover { color: var(--text); background: rgba(255,255,255,.03); }
+        nav button.active { color: var(--accent); border-bottom-color: var(--accent); }
+        main { padding: 1.5rem; max-width: 1100px; margin: 0 auto; }
+        .section { display: none; }
+        .section.active { display: block; }
+        .card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 1.2rem;
+            margin-bottom: 1rem;
+            border: 1px solid var(--border);
+        }
+        .card h3 { font-size: 1rem; margin-bottom: .8rem; color: var(--accent); }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        .stat-card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 1.2rem;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+        .stat-card .num { font-size: 2rem; font-weight: 700; color: var(--accent); }
+        .stat-card .label { font-size: .8rem; color: var(--text-dim); margin-top: .3rem; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: .85rem;
+        }
+        th, td {
+            padding: .6rem .8rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        th { color: var(--text-dim); font-weight: 600; font-size: .75rem; text-transform: uppercase; }
+        tr:hover { background: rgba(255,255,255,.03); }
+        .badge {
+            display: inline-block;
+            padding: .15rem .5rem;
+            border-radius: 8px;
+            font-size: .75rem;
+            font-weight: 600;
+        }
+        .badge-on { background: var(--success); color: #fff; }
+        .badge-off { background: #666; color: #ccc; }
+        input, select, textarea {
+            background: var(--input-bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: .5rem .7rem;
+            border-radius: 6px;
+            font-size: .85rem;
+            width: 100%;
+        }
+        textarea { min-height: 80px; resize: vertical; font-family: inherit; }
+        select { cursor: pointer; }
+        label { display: block; font-size: .8rem; color: var(--text-dim); margin-bottom: .3rem; margin-top: .6rem; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; }
+        .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .8rem; }
+        button, .btn {
+            cursor: pointer;
+            font-size: .85rem;
+            border: none;
+            border-radius: 6px;
+            padding: .5rem 1rem;
+            transition: all .2s;
+        }
+        .btn-primary { background: var(--accent); color: #fff; }
+        .btn-primary:hover { background: #d63050; }
+        .btn-sm { padding: .3rem .6rem; font-size: .75rem; }
+        .btn-danger { background: #c0392b; color: #fff; }
+        .btn-danger:hover { background: #a93226; }
+        .btn-success { background: var(--success); color: #fff; }
+        .btn-ghost { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
+        .btn-ghost:hover { color: var(--text); border-color: var(--text-dim); }
+        .actions { display: flex; gap: .4rem; }
+        .mt-1 { margin-top: .8rem; }
+        .toast {
+            position: fixed; bottom: 1.5rem; right: 1.5rem;
+            background: var(--success); color: #fff;
+            padding: .7rem 1.2rem; border-radius: 8px;
+            font-size: .85rem; z-index: 999;
+            animation: slideIn .3s ease;
+        }
+        @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .empty { text-align: center; color: var(--text-dim); padding: 2rem; font-size: .9rem; }
+        .upcoming-list { list-style: none; }
+        .upcoming-list li { padding: .4rem 0; border-bottom: 1px solid var(--border); font-size: .85rem; }
+        .upcoming-list li:last-child { border-bottom: none; }
+        @media (max-width: 600px) {
+            .form-row, .form-row-3 { grid-template-columns: 1fr; }
+            main { padding: 1rem; }
+            header { padding: .8rem 1rem; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1><span>Sonic2Life</span> Admin</h1>
+        <a href="/">&#8592; Back to App</a>
+    </header>
+
+    <nav id="nav">
+        <button data-tab="dashboard" class="active">&#128202; Dashboard</button>
+        <button data-tab="settings">&#9881; Settings</button>
+        <button data-tab="medications">&#128138; Medications</button>
+        <button data-tab="events">&#128197; Events</button>
+        <button data-tab="memory">&#129504; Memory</button>
+    </nav>
+
+    <main>
+        <!-- ── Dashboard ────────────────────────────────────── -->
+        <div id="sec-dashboard" class="section active">
+            <div class="stats-grid" id="dashboard-stats"></div>
+            <div class="card mt-1">
+                <h3>&#128197; Upcoming Events</h3>
+                <ul class="upcoming-list" id="dashboard-upcoming"></ul>
+            </div>
+        </div>
+
+        <!-- ── Settings ─────────────────────────────────────── -->
+        <div id="sec-settings" class="section">
+            <div class="card">
+                <h3>&#9881; Application Settings</h3>
+                <div id="settings-form"></div>
+                <div class="mt-1">
+                    <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Medications ──────────────────────────────────── -->
+        <div id="sec-medications" class="section">
+            <div class="card">
+                <h3>&#128138; Add Medication</h3>
+                <div class="form-row">
+                    <div><label>Name</label><input id="med-name" placeholder="e.g. Aspirin"></div>
+                    <div><label>Dosage</label><input id="med-dosage" placeholder="e.g. 100mg"></div>
+                </div>
+                <div class="form-row-3">
+                    <div><label>Time (HH:MM)</label><input id="med-time" type="time" value="08:00"></div>
+                    <div><label>Days</label><input id="med-days" value="mon,tue,wed,thu,fri,sat,sun" placeholder="mon,tue,..."></div>
+                    <div><label>Notes</label><input id="med-notes" placeholder="Take with food"></div>
+                </div>
+                <div class="mt-1">
+                    <button class="btn btn-primary" onclick="addMedication()">+ Add Medication</button>
+                </div>
+            </div>
+            <div class="card">
+                <h3>&#128203; Active Medications</h3>
+                <table>
+                    <thead><tr><th>Name</th><th>Dosage</th><th>Time</th><th>Days</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody id="med-table"></tbody>
+                </table>
+            </div>
+            <div class="card">
+                <h3>&#128220; Medication Log</h3>
+                <table>
+                    <thead><tr><th>Medication</th><th>Taken At</th><th>Confirmed By</th></tr></thead>
+                    <tbody id="med-log-table"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ── Events ───────────────────────────────────────── -->
+        <div id="sec-events" class="section">
+            <div class="card">
+                <h3>&#128197; Add Event</h3>
+                <div class="form-row">
+                    <div><label>Title</label><input id="evt-title" placeholder="e.g. Doctor appointment"></div>
+                    <div><label>Date &amp; Time</label><input id="evt-time" type="datetime-local"></div>
+                </div>
+                <div class="form-row-3">
+                    <div><label>Reminder (min before)</label><input id="evt-reminder" type="number" value="60"></div>
+                    <div><label>Morning brief</label>
+                        <select id="evt-brief">
+                            <option value="1">Yes</option>
+                            <option value="0">No</option>
+                        </select>
+                    </div>
+                    <div><label>Description</label><input id="evt-desc" placeholder="Optional details"></div>
+                </div>
+                <div class="mt-1">
+                    <button class="btn btn-primary" onclick="addEvent()">+ Add Event</button>
+                </div>
+            </div>
+            <div class="card">
+                <h3>&#128203; All Events</h3>
+                <table>
+                    <thead><tr><th>Title</th><th>Date/Time</th><th>Reminder</th><th>Brief</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody id="evt-table"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ── Memory ───────────────────────────────────────── -->
+        <div id="sec-memory" class="section">
+            <div class="card">
+                <h3>&#129504; Add Memory Entry</h3>
+                <div class="form-row-3">
+                    <div><label>Key</label><input id="mem-key" placeholder="e.g. favorite_color"></div>
+                    <div><label>Value</label><input id="mem-val" placeholder="e.g. blue"></div>
+                    <div><label>Category</label><input id="mem-cat" value="preference" placeholder="preference"></div>
+                </div>
+                <div class="mt-1">
+                    <button class="btn btn-primary" onclick="addMemory()">+ Add Entry</button>
+                </div>
+            </div>
+            <div class="card">
+                <h3>&#128203; All Memory Entries</h3>
+                <table>
+                    <thead><tr><th>Key</th><th>Value</th><th>Category</th><th>Updated</th><th>Actions</th></tr></thead>
+                    <tbody id="mem-table"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script>
+    // ── Helpers ────────────────────────────────────────────────
+    const API = '/api/admin';
+    async function api(path, opts = {}) {
+        const res = await fetch(API + path, {
+            headers: { 'Content-Type': 'application/json' },
+            ...opts,
+        });
+        return res.json();
+    }
+    function toast(msg) {
+        const el = document.createElement('div');
+        el.className = 'toast';
+        el.textContent = msg;
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 2500);
+    }
+    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+    function fmtDt(s) {
+        if (!s) return '-';
+        try { return new Date(s).toLocaleString(); } catch { return s; }
+    }
+
+    // ── Tab Navigation ────────────────────────────────────────
+    document.querySelectorAll('nav button').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('sec-' + btn.dataset.tab).classList.add('active');
+            loadSection(btn.dataset.tab);
+        });
+    });
+
+    function loadSection(tab) {
+        if (tab === 'dashboard') loadDashboard();
+        else if (tab === 'settings') loadSettings();
+        else if (tab === 'medications') { loadMedications(); loadMedLog(); }
+        else if (tab === 'events') loadEvents();
+        else if (tab === 'memory') loadMemory();
+    }
+
+    // ── Dashboard ─────────────────────────────────────────────
+    async function loadDashboard() {
+        const d = await api('/dashboard');
+        document.getElementById('dashboard-stats').innerHTML = `
+            <div class="stat-card"><div class="num">${d.active_medications}</div><div class="label">Active Medications</div></div>
+            <div class="stat-card"><div class="num">${d.active_events}</div><div class="label">Active Events</div></div>
+            <div class="stat-card"><div class="num">${d.memory_entries}</div><div class="label">Memory Entries</div></div>
+            <div class="stat-card"><div class="num"><span class="badge ${d.scheduler.enabled === 'true' ? 'badge-on' : 'badge-off'}">${d.scheduler.enabled === 'true' ? 'ON' : 'OFF'}</span></div><div class="label">Scheduler (every ${d.scheduler.interval_minutes} min)</div></div>
+        `;
+        const ul = document.getElementById('dashboard-upcoming');
+        if (!d.upcoming_events.length) {
+            ul.innerHTML = '<li class="empty">No upcoming events</li>';
+        } else {
+            ul.innerHTML = d.upcoming_events.map(e =>
+                `<li><strong>${fmtDt(e.event_time)}</strong> &mdash; ${esc(e.title)} <span style="color:var(--text-dim)">(reminder ${e.reminder_minutes}min before)</span></li>`
+            ).join('');
+        }
+    }
+
+    // ── Settings ──────────────────────────────────────────────
+    const SETTING_META = {
+        timezone: { label: 'Timezone', type: 'select', options: ['Europe/Prague','Europe/London','Europe/Berlin','America/New_York','America/Chicago','America/Los_Angeles','Asia/Tokyo','UTC'] },
+        language: { label: 'Language', type: 'select', options: ['en','cs'] },
+        voice_id: { label: 'Voice ID', type: 'select', options: ['tiffany','matthew','amy','ruth','gregory'] },
+        scheduler_enabled: { label: 'Scheduler Enabled', type: 'select', options: ['true','false'] },
+        scheduler_interval_minutes: { label: 'Scheduler Interval (min)', type: 'number' },
+        notification_advance_minutes: { label: 'Default Notification Advance (min)', type: 'number' },
+        system_prompt: { label: 'System Prompt Override', type: 'textarea' },
+    };
+
+    let _settings = [];
+    async function loadSettings() {
+        const data = await api('/settings');
+        _settings = data.settings;
+        const form = document.getElementById('settings-form');
+        form.innerHTML = _settings.map(s => {
+            const meta = SETTING_META[s.key] || { label: s.key, type: 'text' };
+            let input = '';
+            if (meta.type === 'select') {
+                input = `<select id="set-${s.key}">${meta.options.map(o => `<option value="${o}" ${o === s.value ? 'selected' : ''}>${o}</option>`).join('')}</select>`;
+            } else if (meta.type === 'textarea') {
+                input = `<textarea id="set-${s.key}">${esc(s.value)}</textarea>`;
+            } else if (meta.type === 'number') {
+                input = `<input type="number" id="set-${s.key}" value="${esc(s.value)}">`;
+            } else {
+                input = `<input type="text" id="set-${s.key}" value="${esc(s.value)}">`;
+            }
+            return `<label>${meta.label} <span style="color:var(--text-dim);font-size:.7rem">${esc(s.description || '')}</span></label>${input}`;
+        }).join('');
+    }
+    async function saveSettings() {
+        for (const s of _settings) {
+            const el = document.getElementById('set-' + s.key);
+            if (!el) continue;
+            const newVal = el.value;
+            if (newVal !== s.value) {
+                await api('/settings/' + s.key, { method: 'PUT', body: JSON.stringify({ value: newVal }) });
+            }
+        }
+        toast('Settings saved!');
+        loadSettings();
+    }
+
+    // ── Medications ───────────────────────────────────────────
+    async function loadMedications() {
+        const data = await api('/medications');
+        const tbody = document.getElementById('med-table');
+        if (!data.medications.length) {
+            tbody.innerHTML = '<tr><td colspan="6" class="empty">No medications yet</td></tr>';
+            return;
+        }
+        tbody.innerHTML = data.medications.map(m => `
+            <tr>
+                <td>${esc(m.name)}</td>
+                <td>${esc(m.dosage || '-')}</td>
+                <td>${esc(m.schedule_time)}</td>
+                <td style="font-size:.75rem">${esc(m.days)}</td>
+                <td><span class="badge ${m.active ? 'badge-on' : 'badge-off'}">${m.active ? 'Active' : 'Inactive'}</span></td>
+                <td class="actions">
+                    <button class="btn btn-sm btn-ghost" onclick="toggleMed(${m.id}, ${m.active})">${m.active ? 'Disable' : 'Enable'}</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteMed(${m.id})">Delete</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+    async function addMedication() {
+        const name = document.getElementById('med-name').value.trim();
+        const time = document.getElementById('med-time').value;
+        if (!name || !time) return toast('Name and time required');
+        await api('/medications', { method: 'POST', body: JSON.stringify({
+            name, dosage: document.getElementById('med-dosage').value,
+            schedule_time: time, days: document.getElementById('med-days').value,
+            notes: document.getElementById('med-notes').value,
+        })});
+        document.getElementById('med-name').value = '';
+        document.getElementById('med-dosage').value = '';
+        document.getElementById('med-notes').value = '';
+        toast('Medication added!');
+        loadMedications();
+    }
+    async function toggleMed(id, current) {
+        await api('/medications/' + id, { method: 'PUT', body: JSON.stringify({ active: current ? 0 : 1 }) });
+        toast('Medication updated');
+        loadMedications();
+    }
+    async function deleteMed(id) {
+        if (!confirm('Delete this medication?')) return;
+        await api('/medications/' + id, { method: 'DELETE' });
+        toast('Medication deleted');
+        loadMedications();
+    }
+    async function loadMedLog() {
+        const data = await api('/medication-log');
+        const tbody = document.getElementById('med-log-table');
+        if (!data.log.length) {
+            tbody.innerHTML = '<tr><td colspan="3" class="empty">No log entries</td></tr>';
+            return;
+        }
+        tbody.innerHTML = data.log.map(l => `
+            <tr><td>${esc(l.medication_name || '?')}</td><td>${fmtDt(l.taken_at)}</td><td>${esc(l.confirmed_by)}</td></tr>
+        `).join('');
+    }
+
+    // ── Events ────────────────────────────────────────────────
+    async function loadEvents() {
+        const data = await api('/events');
+        const tbody = document.getElementById('evt-table');
+        if (!data.events.length) {
+            tbody.innerHTML = '<tr><td colspan="6" class="empty">No events yet</td></tr>';
+            return;
+        }
+        tbody.innerHTML = data.events.map(e => `
+            <tr>
+                <td>${esc(e.title)}</td>
+                <td>${fmtDt(e.event_time)}</td>
+                <td>${e.reminder_minutes} min</td>
+                <td>${e.morning_brief ? 'Yes' : 'No'}</td>
+                <td>
+                    <span class="badge ${e.active ? 'badge-on' : 'badge-off'}">${e.active ? 'Active' : 'Inactive'}</span>
+                    ${e.notified ? ' <span style="color:var(--text-dim);font-size:.7rem">notified</span>' : ''}
+                </td>
+                <td class="actions">
+                    <button class="btn btn-sm btn-ghost" onclick="toggleEvent(${e.id}, ${e.active})">${e.active ? 'Disable' : 'Enable'}</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteEvent(${e.id})">Delete</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+    async function addEvent() {
+        const title = document.getElementById('evt-title').value.trim();
+        const time = document.getElementById('evt-time').value;
+        if (!title || !time) return toast('Title and time required');
+        await api('/events', { method: 'POST', body: JSON.stringify({
+            title,
+            event_time: new Date(time).toISOString(),
+            reminder_minutes: parseInt(document.getElementById('evt-reminder').value) || 60,
+            morning_brief: parseInt(document.getElementById('evt-brief').value),
+            description: document.getElementById('evt-desc').value,
+        })});
+        document.getElementById('evt-title').value = '';
+        document.getElementById('evt-desc').value = '';
+        toast('Event added!');
+        loadEvents();
+    }
+    async function toggleEvent(id, current) {
+        await api('/events/' + id, { method: 'PUT', body: JSON.stringify({ active: current ? 0 : 1 }) });
+        toast('Event updated');
+        loadEvents();
+    }
+    async function deleteEvent(id) {
+        if (!confirm('Delete this event?')) return;
+        await api('/events/' + id, { method: 'DELETE' });
+        toast('Event deleted');
+        loadEvents();
+    }
+
+    // ── Memory ────────────────────────────────────────────────
+    async function loadMemory() {
+        const data = await api('/memory');
+        const tbody = document.getElementById('mem-table');
+        if (!data.memory.length) {
+            tbody.innerHTML = '<tr><td colspan="5" class="empty">No memory entries</td></tr>';
+            return;
+        }
+        tbody.innerHTML = data.memory.map(m => `
+            <tr>
+                <td><code>${esc(m.key)}</code></td>
+                <td>${esc(m.value)}</td>
+                <td>${esc(m.category)}</td>
+                <td style="font-size:.75rem">${fmtDt(m.updated_at)}</td>
+                <td class="actions">
+                    <button class="btn btn-sm btn-danger" onclick="deleteMemory('${esc(m.key)}')">Delete</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+    async function addMemory() {
+        const key = document.getElementById('mem-key').value.trim();
+        const val = document.getElementById('mem-val').value.trim();
+        if (!key || !val) return toast('Key and value required');
+        await api('/memory', { method: 'POST', body: JSON.stringify({
+            key, value: val, category: document.getElementById('mem-cat').value || 'preference',
+        })});
+        document.getElementById('mem-key').value = '';
+        document.getElementById('mem-val').value = '';
+        toast('Memory saved!');
+        loadMemory();
+    }
+    async function deleteMemory(key) {
+        if (!confirm('Delete "' + key + '"?')) return;
+        await api('/memory/' + encodeURIComponent(key), { method: 'DELETE' });
+        toast('Memory deleted');
+        loadMemory();
+    }
+
+    // ── Init ──────────────────────────────────────────────────
+    loadDashboard();
+    </script>
+</body>
+</html>
