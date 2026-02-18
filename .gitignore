@@ -8,3 +8,7 @@ build/
 venv/
 logs/
 memory-bank/
+data/
+*.db
+*.db-wal
+*.db-shm

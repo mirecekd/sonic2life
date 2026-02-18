@@ -12,3 +12,5 @@ services:
     volumes:
       # Mount .env for local development (override the default)
       - ./.env:/app/.env:ro
+      # Persistent data directory (SQLite DB, uploads, exports)
+      - ./data:/app/data

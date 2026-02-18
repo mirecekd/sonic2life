@@ -20,6 +20,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app/ ./app/
 COPY .env.example .env
 
+# Create persistent data directory (for SQLite DB, uploads, exports)
+RUN mkdir -p /app/data
+
 # Expose port
 EXPOSE 5005
 

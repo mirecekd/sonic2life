@@ -166,6 +166,7 @@
         <button data-tab="medications">&#128138; Medications</button>
         <button data-tab="events">&#128197; Events</button>
         <button data-tab="memory">&#129504; Memory</button>
+        <button data-tab="files">&#128193; Files</button>
     </nav>
 
     <main>
@@ -253,6 +254,32 @@
             </div>
         </div>
 
+        <!-- ── Files ────────────────────────────────────────── -->
+        <div id="sec-files" class="section">
+            <div class="card">
+                <h3>&#128193; Upload File</h3>
+                <div class="form-row">
+                    <div>
+                        <label>Select file</label>
+                        <input type="file" id="file-upload" style="padding:.4rem">
+                    </div>
+                    <div style="display:flex;align-items:flex-end">
+                        <button class="btn btn-primary" onclick="uploadFile()">&#8593; Upload</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <h3>&#128203; Files in data/</h3>
+                <div class="mt-1" style="margin-bottom:.6rem">
+                    <a class="btn btn-sm btn-success" href="/api/admin/files/db-backup" target="_blank">&#128190; Download DB Backup</a>
+                </div>
+                <table>
+                    <thead><tr><th>Name</th><th>Size</th><th>Modified</th><th>Actions</th></tr></thead>
+                    <tbody id="files-table"></tbody>
+                </table>
+            </div>
+        </div>
+
         <!-- ── Memory ───────────────────────────────────────── -->
         <div id="sec-memory" class="section">
             <div class="card">
@@ -316,6 +343,7 @@
         else if (tab === 'medications') { loadMedications(); loadMedLog(); }
         else if (tab === 'events') loadEvents();
         else if (tab === 'memory') loadMemory();
+        else if (tab === 'files') loadFiles();
     }
 
     // ── Dashboard ─────────────────────────────────────────────
@@ -531,6 +559,48 @@
         await api('/memory/' + encodeURIComponent(key), { method: 'DELETE' });
         toast('Memory deleted');
         loadMemory();
+    }
+
+    // ── Files ─────────────────────────────────────────────────
+    async function loadFiles() {
+        const data = await api('/files');
+        const tbody = document.getElementById('files-table');
+        if (!data.files.length) {
+            tbody.innerHTML = '<tr><td colspan="4" class="empty">No files in data/</td></tr>';
+            return;
+        }
+        tbody.innerHTML = data.files.map(f => `
+            <tr>
+                <td><code>${esc(f.name)}</code></td>
+                <td>${esc(f.size_human)}</td>
+                <td style="font-size:.75rem">${fmtDt(f.modified)}</td>
+                <td class="actions">
+                    <a class="btn btn-sm btn-ghost" href="/api/admin/files/download/${encodeURIComponent(f.name)}" target="_blank">&#8595; Download</a>
+                    ${f.name !== 'sonic2life.db' ? `<button class="btn btn-sm btn-danger" onclick="deleteFile('${esc(f.name)}')">Delete</button>` : ''}
+                </td>
+            </tr>
+        `).join('');
+    }
+    async function uploadFile() {
+        const input = document.getElementById('file-upload');
+        if (!input.files.length) return toast('Select a file first');
+        const formData = new FormData();
+        formData.append('file', input.files[0]);
+        const res = await fetch(API + '/files/upload', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.status === 'ok') {
+            toast('File uploaded: ' + data.filename);
+            input.value = '';
+            loadFiles();
+        } else {
+            toast('Upload failed');
+        }
+    }
+    async function deleteFile(name) {
+        if (!confirm('Delete file "' + name + '"?')) return;
+        await api('/files/' + encodeURIComponent(name), { method: 'DELETE' });
+        toast('File deleted');
+        loadFiles();
     }
 
     // ── Init ──────────────────────────────────────────────────

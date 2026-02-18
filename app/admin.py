@@ -2,14 +2,17 @@
 
 import json
 import logging
+import os
+import shutil
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, UploadFile, File
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from pathlib import Path
 
+from app.config import DATA_DIR
 from app.tools.database import get_db
 
 logger = logging.getLogger(__name__)
@@ -317,6 +320,11 @@ async def dashboard():
 
     conn.close()
 
+    # Data dir stats
+    data_path = Path(DATA_DIR)
+    files_in_data = [f.name for f in data_path.iterdir() if f.is_file()] if data_path.exists() else []
+    data_size_mb = sum(f.stat().st_size for f in data_path.iterdir() if f.is_file()) / (1024 * 1024) if data_path.exists() else 0
+
     return {
         "active_medications": med_count,
         "active_events": event_count,
@@ -327,4 +335,108 @@ async def dashboard():
             "enabled": sched_enabled["value"] if sched_enabled else "false",
             "interval_minutes": sched_interval["value"] if sched_interval else "5",
         },
+        "data_dir": {
+            "path": str(data_path.resolve()),
+            "files_count": len(files_in_data),
+            "size_mb": round(data_size_mb, 2),
+        },
     }
+
+
+# ── File Management API (data/ workdir) ──────────────────────────
+
+@router.get("/api/admin/files")
+async def list_files():
+    """List all files in the data directory."""
+    data_path = Path(DATA_DIR)
+    if not data_path.exists():
+        return {"files": []}
+
+    files = []
+    for f in sorted(data_path.iterdir()):
+        if f.is_file():
+            stat = f.stat()
+            files.append({
+                "name": f.name,
+                "size": stat.st_size,
+                "size_human": _human_size(stat.st_size),
+                "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+            })
+    return {"files": files}
+
+
+@router.post("/api/admin/files/upload")
+async def upload_file(file: UploadFile = File(...)):
+    """Upload a file to the data directory."""
+    data_path = Path(DATA_DIR)
+    data_path.mkdir(parents=True, exist_ok=True)
+
+    # Sanitize filename
+    safe_name = Path(file.filename).name  # strip any path components
+    dest = data_path / safe_name
+
+    with open(dest, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+
+    logger.info(f"📁 File uploaded: {safe_name}")
+    return {"status": "ok", "filename": safe_name, "size": dest.stat().st_size}
+
+
+@router.get("/api/admin/files/download/{filename}")
+async def download_file(filename: str):
+    """Download a file from the data directory."""
+    data_path = Path(DATA_DIR)
+    file_path = data_path / Path(filename).name  # sanitize
+
+    if not file_path.exists() or not file_path.is_file():
+        return {"status": "error", "message": "File not found"}
+
+    return FileResponse(
+        str(file_path),
+        filename=file_path.name,
+        media_type="application/octet-stream",
+    )
+
+
+@router.delete("/api/admin/files/{filename}")
+async def delete_file(filename: str):
+    """Delete a file from the data directory."""
+    data_path = Path(DATA_DIR)
+    file_path = data_path / Path(filename).name  # sanitize
+
+    if not file_path.exists() or not file_path.is_file():
+        return {"status": "error", "message": "File not found"}
+
+    # Don't allow deleting the database
+    if file_path.name == "sonic2life.db":
+        return {"status": "error", "message": "Cannot delete the database file"}
+
+    file_path.unlink()
+    logger.info(f"🗑️ File deleted: {filename}")
+    return {"status": "ok", "filename": filename}
+
+
+@router.get("/api/admin/files/db-backup")
+async def backup_database():
+    """Download a backup of the SQLite database."""
+    from app.config import DATABASE_PATH
+    db_path = Path(DATABASE_PATH)
+
+    if not db_path.exists():
+        return {"status": "error", "message": "Database not found"}
+
+    backup_name = f"sonic2life_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
+    return FileResponse(
+        str(db_path),
+        filename=backup_name,
+        media_type="application/octet-stream",
+    )
+
+
+def _human_size(size_bytes: int) -> str:
+    """Convert bytes to human-readable size."""
+    for unit in ["B", "KB", "MB", "GB"]:
+        if size_bytes < 1024:
+            return f"{size_bytes:.1f} {unit}"
+        size_bytes /= 1024
+    return f"{size_bytes:.1f} TB"

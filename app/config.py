@@ -61,5 +61,9 @@ AUDIO_SAMPLE_SIZE = 16  # bits
 # Weather (optional – if OWM_API_KEY is not set, weather tool will be disabled)
 OWM_API_KEY = os.getenv("OWM_API_KEY", "")
 
-# Database
-DATABASE_PATH = os.getenv("DATABASE_PATH", "sonic2life.db")
+# Data directory (persistent storage for DB, uploads, exports)
+DATA_DIR = os.getenv("DATA_DIR", "data")
+os.makedirs(DATA_DIR, exist_ok=True)
+
+# Database (stored in DATA_DIR for persistence across container restarts)
+DATABASE_PATH = os.getenv("DATABASE_PATH", os.path.join(DATA_DIR, "sonic2life.db"))
