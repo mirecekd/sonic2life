@@ -31,9 +31,12 @@ TOOL_SPECS = [
                 "Ask a specialized AI research agent to help with complex tasks. "
                 "The agent can: search the web, search AWS documentation, "
                 "perform calculations, get current date/time, call AWS services, "
-                "make HTTP API requests, and reason through multi-step problems. "
+                "make HTTP API requests, manage medications and schedule, "
+                "manage calendar events and appointments (add, cancel, reschedule, "
+                "get today's schedule, get upcoming events), remember user preferences, "
+                "and reason through multi-step problems. "
                 "Use this for ANY question that needs external information, "
-                "calculations, or research."
+                "calculations, calendar/schedule management, or research."
             ),
             "inputSchema": {
                 "json": json.dumps({
@@ -137,6 +140,25 @@ def _create_strands_agent():
         logger.info("  ✅ memory tools (3)")
     except Exception as e:
         logger.warning(f"  ⚠️ memory tools not available: {e}")
+
+    try:
+        from app.tools.events import (
+            get_upcoming_events,
+            get_todays_schedule,
+            add_event,
+            cancel_event,
+            update_event_time,
+        )
+        tools.extend([
+            get_upcoming_events,
+            get_todays_schedule,
+            add_event,
+            cancel_event,
+            update_event_time,
+        ])
+        logger.info("  ✅ event/calendar tools (5)")
+    except Exception as e:
+        logger.warning(f"  ⚠️ event/calendar tools not available: {e}")
 
     # Add MCP tools (AWS documentation search)
     mcp_client = None
