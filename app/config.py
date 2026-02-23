@@ -61,8 +61,7 @@ AUDIO_SAMPLE_RATE = 16000  # Nova 2 Sonic native sample rate
 AUDIO_CHANNELS = 1
 AUDIO_SAMPLE_SIZE = 16  # bits
 
-# Weather (optional – if OWM_API_KEY is not set, weather tool will be disabled)
-OWM_API_KEY = os.getenv("OWM_API_KEY", "")
+# Weather – uses Open-Meteo API (free, no API key needed)
 
 # Data directory (persistent storage for DB, uploads, exports)
 DATA_DIR = os.getenv("DATA_DIR", "data")

@@ -118,7 +118,7 @@ def _build_agent_system_prompt() -> str:
         "add_event(title, event_time, description, reminder_minutes, morning_brief), "
         "cancel_event(event_title), update_event_time(event_title, new_time)\n"
         "Memory: remember(key, value, category), recall(key, category), forget(key)\n"
-        "Weather: get_weather(lat, lon) – use GPS from [CONTEXT]\n"
+        "Weather: get_weather(lat, lon) – current weather + hourly/daily forecast (Open-Meteo, no API key). Use GPS from [CONTEXT]. Can answer about today, tomorrow, next days.\n"
         "Web search: web_search(query, max_results) – search the internet for current info\n"
         "Vision: analyze_photo(question) – analyze the user's camera photo using Nova 2 Lite vision\n"
         "Location: reverse_geocode, search_places – via MCP\n"
