@@ -26,7 +26,7 @@ Traditional apps with small text, complex menus, and visual interfaces are **use
 
 **Sonic2Life** is a **100% voice-first** PWA assistant powered by **Amazon Nova 2 Sonic** speech-to-speech AI. It doesn't just answer questions — it **proactively cares**:
 
-- 🗣️ **Natural Czech voice conversation** — no screens, no typing, no menus
+- 🗣️ **Natural voice conversation** — no screens, no typing, no menus (auto-detects language)
 - 💊 **Medication management** — tracks schedules, sends reminders, confirms intake
 - 📍 **Real-time location awareness** — "Where am I?", nearby pharmacies, walking directions
 - 📅 **Calendar & events** — appointments, birthdays, daily schedule briefings
@@ -95,7 +95,8 @@ The entire UI is a single large button. Press it, talk. The AI handles everythin
 | **Continuous Audio Streaming** | No push-to-talk. Audio streams non-stop from mic to server; Nova Sonic handles VAD, turn detection, and barge-in server-side. |
 | **GPS Context Injection** | GPS coordinates are automatically injected into every agent call — the AI always knows where the user is without asking. |
 | **Dual Notification Delivery** | SSE for in-app (instant, reliable) + Web Push for background (system notifications when app is closed). |
-| **Actionable Notifications** | Push notifications include action buttons (e.g., "✅ Taken" / "⏰ Snooze") with feedback loop to server. |
+| **Actionable Notifications** | Push notifications include action buttons ("✅ Taken" / "⏰ Snooze") with **real backend logic** — taken logs to DB, snooze reschedules reminder. |
+| **User Profile Personalization** | Admin-set user name is injected into system prompts. The AI greets by name and infers language from the name. |
 
 ---
 
@@ -114,16 +115,18 @@ The entire UI is a single large button. Press it, talk. The AI handles everythin
 
 ### 🗣️ Voice Conversation
 - Real-time speech-to-speech via Amazon Nova 2 Sonic
-- Natural Czech language with warm, patient persona
+- **Dynamic language detection** — automatically matches the user's language (English, Czech, German, etc.)
+- Warm, patient persona that adapts to the user's name and profile
 - Continuous listening with server-side VAD (no button holding needed)
 - Barge-in support (interrupt the AI mid-sentence)
 
 ### 💊 Medication Management
 - Track medication schedules (name, dosage, times, days of week)
-- Confirm medication intake via voice
-- View medication history and compliance
+- Confirm medication intake via voice or notification button
+- View medication history and compliance in admin panel
 - **Proactive push reminders** when it's time to take meds
-- Actionable notifications: "✅ Taken" or "⏰ Snooze 15min"
+- **Functional action buttons**: "✅ Taken" logs to medication history, "⏰ Snooze 15min" reschedules reminder
+- Snooze & response data persisted to SQLite (survives restarts)
 
 ### 📅 Calendar & Events
 - Add, view, cancel, and reschedule events via voice
@@ -143,6 +146,12 @@ The entire UI is a single large button. Press it, talk. The AI handles everythin
 - Clothing recommendations based on weather
 - Location-aware (uses GPS automatically)
 
+### 👤 User Profile & Personalization
+- Admin-configurable user profile (name, full name, phone)
+- **Dynamic greeting** — assistant addresses user by name
+- **Language inference** from user profile (e.g., "Miroslav" → Czech, "Jack" → English)
+- Profile injected into both Nova Sonic and Strands Agent system prompts
+
 ### 🧠 Memory & Preferences
 - Remembers user preferences, names, habits
 - Persistent across sessions (SQLite-backed)
@@ -153,7 +162,10 @@ The entire UI is a single large button. Press it, talk. The AI handles everythin
 - Push notifications even when app is closed (Web Push + VAPID)
 - In-app banner notifications when app is open (SSE)
 - Morning daily briefing with schedule overview
-- Actionable buttons with feedback (taken/snooze/dismiss)
+- **Actionable buttons with real backend logic:**
+  - "✅ Taken" → logs medication to `medication_log` (visible in admin history)
+  - "⏰ Snooze 15min" → stores snooze in SQLite, scheduler re-sends after expiry
+- All notification responses persisted to SQLite
 
 ### 📱 PWA (Progressive Web App)
 - Installable on phone home screen
@@ -174,44 +186,51 @@ The entire UI is a single large button. Press it, talk. The AI handles everythin
 
 ### 🌅 Morning Routine
 ```
-👤 "Dobré ráno!"
-🤖 "Dobré ráno! Dnes je neděle, třiadvacátého února.
-    Venku je pět stupňů a zataženo — oblečte si teplou bundu.
-    Máte vzít Metformin a Enalapril.
-    V deset hodin máte doktora Nováka na Budějovické."
+👤 "Good morning!"
+🤖 "Good morning, Jack! Today is Sunday, February 23rd.
+    It's 5 degrees and cloudy outside — wear a warm jacket.
+    You need to take Metformin and Enalapril.
+    At 10 AM you have Dr. Smith at the clinic on Main Street."
 ```
 
 ### 💊 Medication Reminder (Proactive Push)
 ```
-📱 [Push notification: "💊 Čas na léky! Metformin 500mg"]
-   [Buttons: ✅ Vzato | ⏰ Odložit]
-👤 *taps "Vzato"*
-🤖 ✅ Zaznamenáno. Další lék máte ve 20:00.
+📱 [Push notification: "💊 Time to take: Metformin 500mg"]
+   [Buttons: ✅ Taken | ⏰ Snooze 15min]
+👤 *taps "Taken"*
+🤖 ✅ Logged to medication history. Next medication at 8:00 PM.
+
+--- or ---
+
+👤 *taps "Snooze 15min"*
+🤖 ⏰ Snoozed. Reminder will repeat in 15 minutes.
+📱 [15 min later: "💊 Reminder (after snooze): Metformin 500mg"]
 ```
 
 ### 🗺️ Finding a Pharmacy
 ```
-👤 "Kde je nejbližší lékárna?"
-🤖 "Nejbližší lékárna je Dr. Max na Vinohradské,
-    čtyři sta metrů od vás. Chcete navigovat?"
-👤 "Ano"
-🤖 "Vydejte se rovně po chodníku. Za sto metrů
-    odbočte doleva na Vinohradskou. Lékárna bude
-    po pravé straně za tři sta metrů."
+👤 "Where is the nearest pharmacy?"
+🤖 "The nearest pharmacy is Dr. Max on Vinohradská Street,
+    400 meters from you. Would you like directions?"
+👤 "Yes"
+🤖 "Walk straight ahead. In 100 meters, turn left onto
+    Vinohradská. The pharmacy will be on your right
+    after 300 meters."
 ```
 
 ### 📍 "Where Am I?"
 ```
-👤 "Kde jsem?"
-🤖 "Jste na Václavském náměstí u čísla dvacet tři,
-    Praha 1. Chcete vědět, co je poblíž?"
+👤 "Where am I?"
+🤖 "You're at Wenceslas Square number 23,
+    Prague 1. Would you like to know what's nearby?"
 ```
 
 ### 🛒 Multi-Stop Route
 ```
-👤 "Potřebuju do lékárny a na poštu"
-🤖 "Nejdřív na poštu, je blíž, pak do lékárny.
-    Celkem patnáct minut pěšky. Navigovat?"
+👤 "I need to go to the pharmacy and the post office"
+🤖 "The post office is closer, so let's go there first,
+    then the pharmacy. About 15 minutes walking total.
+    Shall I navigate?"
 ```
 
 ---
@@ -271,7 +290,7 @@ Open `http://localhost:5005` in your browser.
 | `AWS_SECRET_ACCESS_KEY` | Yes | AWS credentials for Bedrock access |
 | `AWS_REGION` | Yes | AWS region (default: `eu-north-1`) |
 | `NOVA_SONIC_MODEL_ID` | No | Default: `amazon.nova-2-sonic-v1:0` |
-| `NOVA_SONIC_VOICE_ID` | No | Default: `matthew` |
+| `NOVA_SONIC_VOICE_ID` | No | Default: `tiffany` |
 | `OWM_API_KEY` | No | OpenWeatherMap API key (weather disabled if empty) |
 | `VAPID_PRIVATE_KEY` | No | Auto-generated if empty (raw urlsafe base64) |
 | `VAPID_PUBLIC_KEY` | No | Auto-generated if empty (raw urlsafe base64) |
@@ -347,7 +366,7 @@ Sonic2Life is a **real-time, bidirectional voice assistant** that demonstrates t
 - Speech-to-speech with no intermediate text pipeline
 - Real-time tool calling during voice conversation
 - Server-side VAD with barge-in support
-- Natural, empathetic persona in Czech language
+- Natural, empathetic persona with dynamic language detection
 
 ### Judging Criteria Coverage
 
