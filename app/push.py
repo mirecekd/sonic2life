@@ -1,6 +1,6 @@
 """Web Push notification support for Sonic2Life.
 
-VAPID keys are auto-generated on first run and stored in env vars.
+VAPID keys are auto-generated on first run and persisted in SQLite.
 Push subscriptions are persisted in SQLite.
 SSE (Server-Sent Events) used for reliable in-app notification delivery.
 """
@@ -26,22 +26,79 @@ _vapid_private_key = None
 _vapid_public_key = None
 
 
+def _load_vapid_from_db() -> tuple[str, str]:
+    """Try to load VAPID keys from SQLite settings table."""
+    try:
+        from app.tools.database import get_db
+        db = get_db()
+        try:
+            priv_row = db.execute(
+                "SELECT value FROM settings WHERE key = 'vapid_private_key'"
+            ).fetchone()
+            pub_row = db.execute(
+                "SELECT value FROM settings WHERE key = 'vapid_public_key'"
+            ).fetchone()
+            priv = priv_row["value"] if priv_row else ""
+            pub = pub_row["value"] if pub_row else ""
+            return priv, pub
+        finally:
+            db.close()
+    except Exception as e:
+        logger.warning(f"⚠️ Could not load VAPID keys from DB: {e}")
+        return "", ""
+
+
+def _save_vapid_to_db(private_key: str, public_key: str):
+    """Persist VAPID keys to SQLite settings table."""
+    try:
+        from app.tools.database import get_db
+        db = get_db()
+        try:
+            db.execute(
+                """INSERT INTO settings (key, value, description)
+                   VALUES ('vapid_private_key', ?, 'VAPID private key for Web Push (auto-generated)')
+                   ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP""",
+                (private_key,),
+            )
+            db.execute(
+                """INSERT INTO settings (key, value, description)
+                   VALUES ('vapid_public_key', ?, 'VAPID public key for Web Push (auto-generated)')
+                   ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP""",
+                (public_key,),
+            )
+            db.commit()
+            logger.info("🔑 VAPID keys saved to database")
+        finally:
+            db.close()
+    except Exception as e:
+        logger.warning(f"⚠️ Could not save VAPID keys to DB: {e}")
+
+
 def _ensure_vapid_keys():
-    """Generate or load VAPID keys."""
+    """Load or generate VAPID keys. Priority: env vars → SQLite → generate new."""
     global _vapid_private_key, _vapid_public_key
 
     if _vapid_private_key and _vapid_public_key:
         return
 
-    # Check env vars first
+    # 1) Check env vars (highest priority, allows override)
     _vapid_private_key = os.getenv("VAPID_PRIVATE_KEY", "")
     _vapid_public_key = os.getenv("VAPID_PUBLIC_KEY", "")
 
     if _vapid_private_key and _vapid_public_key:
         logger.info("🔑 VAPID keys loaded from environment")
+        # Also persist to DB so they survive env changes
+        _save_vapid_to_db(_vapid_private_key, _vapid_public_key)
         return
 
-    # Try to generate
+    # 2) Try loading from SQLite
+    _vapid_private_key, _vapid_public_key = _load_vapid_from_db()
+
+    if _vapid_private_key and _vapid_public_key:
+        logger.info("🔑 VAPID keys loaded from database")
+        return
+
+    # 3) Generate new keys and persist to SQLite
     try:
         from py_vapid import Vapid
         from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
@@ -62,7 +119,10 @@ def _ensure_vapid_keys():
 
         logger.info("🔑 VAPID keys generated")
         logger.info(f"   Public key: {_vapid_public_key[:20]}...")
-        logger.info("   Set VAPID_PRIVATE_KEY and VAPID_PUBLIC_KEY env vars to persist")
+
+        # Persist to SQLite
+        _save_vapid_to_db(_vapid_private_key, _vapid_public_key)
+
     except ImportError:
         logger.warning("⚠️ py_vapid not installed — push notifications disabled")
         logger.warning("   Install with: pip install py-vapid pywebpush")
