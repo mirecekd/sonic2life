@@ -11,4 +11,5 @@ smithy-aws-core
 numpy
 py-vapid
 pywebpush
-uvduckduckgo-search
+uv
+duckduckgo-search
