@@ -29,7 +29,7 @@ TOOL_SPECS = [
             "name": "askAgent",
             "description": (
                 "Ask a specialized AI research agent to help with complex tasks. "
-                "The agent can: search the web, search AWS documentation, "
+                "The agent can: search the web (DuckDuckGo), search AWS documentation, "
                 "perform calculations, get current date/time, call AWS services, "
                 "make HTTP API requests, manage medications and schedule, "
                 "manage calendar events and appointments (add, cancel, reschedule, "
@@ -117,6 +117,7 @@ def _build_agent_system_prompt() -> str:
         "cancel_event(event_title), update_event_time(event_title, new_time)\n"
         "Memory: remember(key, value, category), recall(key, category), forget(key)\n"
         "Weather: get_weather(lat, lon) – use GPS from [CONTEXT]\n"
+        "Web search: web_search(query, max_results) – search the internet for current info\n"
         "Location: reverse_geocode, search_places – via MCP\n"
         "Other: calculator, current_time, http_request, think\n"
     )
@@ -168,6 +169,13 @@ def _create_strands_agent():
         logger.warning("  ⚠️ think not available")
 
     # Sonic2Life custom tools
+    try:
+        from app.tools.web_search import web_search
+        tools.append(web_search)
+        logger.info("  ✅ web_search")
+    except Exception as e:
+        logger.warning(f"  ⚠️ web_search not available: {e}")
+
     try:
         from app.tools.weather import get_weather
         tools.append(get_weather)
