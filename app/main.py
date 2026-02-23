@@ -106,9 +106,10 @@ class PushSubscription(BaseModel):
 
 
 @app.post("/api/push/subscribe")
-async def push_subscribe(subscription: PushSubscription):
-    """Store a push subscription from the frontend."""
-    add_subscription(subscription.model_dump())
+async def push_subscribe(subscription: PushSubscription, request: Request):
+    """Store a push subscription in SQLite."""
+    user_agent = request.headers.get("user-agent", "")
+    add_subscription(subscription.model_dump(), user_agent=user_agent)
     return {"status": "ok"}
 
 

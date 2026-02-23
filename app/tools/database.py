@@ -65,6 +65,19 @@ def _init_tables(conn: sqlite3.Connection):
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
 
+        -- Push notification subscriptions
+        CREATE TABLE IF NOT EXISTS push_subscriptions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            endpoint TEXT NOT NULL UNIQUE,
+            keys_p256dh TEXT NOT NULL,
+            keys_auth TEXT NOT NULL,
+            subscription_json TEXT NOT NULL,  -- full JSON for pywebpush
+            user_agent TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_success_at TIMESTAMP,
+            fail_count INTEGER DEFAULT 0
+        );
+
         -- Calendar events / reminders
         CREATE TABLE IF NOT EXISTS events (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -433,6 +433,48 @@ async def backup_database():
     )
 
 
+# ── Push Subscriptions ────────────────────────────────────────────────
+
+@router.get("/api/admin/push-subscriptions")
+async def list_push_subscriptions():
+    """List all push subscriptions."""
+    db = get_db()
+    try:
+        rows = db.execute(
+            """SELECT id, endpoint, user_agent, created_at, last_success_at, fail_count
+               FROM push_subscriptions ORDER BY created_at DESC"""
+        ).fetchall()
+        return [
+            {
+                "id": r["id"],
+                "endpoint": r["endpoint"],
+                "endpoint_short": r["endpoint"][:80] + "..." if len(r["endpoint"]) > 80 else r["endpoint"],
+                "user_agent": r["user_agent"] or "",
+                "created_at": r["created_at"],
+                "last_success_at": r["last_success_at"],
+                "fail_count": r["fail_count"],
+            }
+            for r in rows
+        ]
+    finally:
+        db.close()
+
+
+@router.delete("/api/admin/push-subscriptions/{sub_id}")
+async def delete_push_subscription(sub_id: int):
+    """Delete a push subscription by ID."""
+    db = get_db()
+    try:
+        db.execute("DELETE FROM push_subscriptions WHERE id = ?", (sub_id,))
+        db.commit()
+        logger.info(f"📲 Push subscription {sub_id} deleted via admin")
+        return {"status": "ok"}
+    finally:
+        db.close()
+
+
+# ── Helpers ───────────────────────────────────────────────────────────
+
 def _human_size(size_bytes: int) -> str:
     """Convert bytes to human-readable size."""
     for unit in ["B", "KB", "MB", "GB"]:

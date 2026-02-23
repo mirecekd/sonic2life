@@ -1,7 +1,7 @@
 """Web Push notification support for Sonic2Life.
 
-VAPID keys are auto-generated on first run and stored in the database.
-Push subscriptions are stored in SQLite.
+VAPID keys are auto-generated on first run and stored in env vars.
+Push subscriptions are persisted in SQLite.
 SSE (Server-Sent Events) used for reliable in-app notification delivery.
 """
 
@@ -14,9 +14,6 @@ import time
 import uuid
 
 logger = logging.getLogger(__name__)
-
-# In-memory subscription store (for hackathon simplicity)
-_subscriptions = []
 
 # SSE clients (asyncio.Queue per connected client)
 _sse_clients: list[asyncio.Queue] = []
@@ -79,13 +76,107 @@ def get_vapid_public_key() -> str:
     return _vapid_public_key or ""
 
 
-def add_subscription(subscription_info: dict):
-    """Store a push subscription."""
-    # Deduplicate by endpoint
+def add_subscription(subscription_info: dict, user_agent: str = ""):
+    """Store a push subscription in SQLite (upsert by endpoint)."""
+    from app.tools.database import get_db
+
     endpoint = subscription_info.get("endpoint", "")
-    _subscriptions[:] = [s for s in _subscriptions if s.get("endpoint") != endpoint]
-    _subscriptions.append(subscription_info)
-    logger.info(f"📲 Push subscription added (total: {len(_subscriptions)})")
+    keys = subscription_info.get("keys", {})
+    keys_p256dh = keys.get("p256dh", "")
+    keys_auth = keys.get("auth", "")
+    sub_json = json.dumps(subscription_info)
+
+    if not endpoint or not keys_p256dh or not keys_auth:
+        logger.warning("📲 Invalid push subscription — missing endpoint or keys")
+        return
+
+    db = get_db()
+    try:
+        db.execute(
+            """INSERT INTO push_subscriptions (endpoint, keys_p256dh, keys_auth, subscription_json, user_agent)
+               VALUES (?, ?, ?, ?, ?)
+               ON CONFLICT(endpoint) DO UPDATE SET
+                   keys_p256dh = excluded.keys_p256dh,
+                   keys_auth = excluded.keys_auth,
+                   subscription_json = excluded.subscription_json,
+                   user_agent = excluded.user_agent,
+                   fail_count = 0""",
+            (endpoint, keys_p256dh, keys_auth, sub_json, user_agent),
+        )
+        db.commit()
+        count = db.execute("SELECT COUNT(*) FROM push_subscriptions").fetchone()[0]
+        logger.info(f"📲 Push subscription saved (total: {count})")
+    finally:
+        db.close()
+
+
+def get_all_subscriptions() -> list[dict]:
+    """Load all push subscriptions from SQLite."""
+    from app.tools.database import get_db
+
+    db = get_db()
+    try:
+        rows = db.execute("SELECT endpoint, subscription_json FROM push_subscriptions").fetchall()
+        subs = []
+        for row in rows:
+            try:
+                subs.append(json.loads(row["subscription_json"]))
+            except (json.JSONDecodeError, KeyError):
+                logger.warning(f"📲 Skipping invalid subscription: {row['endpoint'][:50]}...")
+        return subs
+    finally:
+        db.close()
+
+
+def remove_subscription(endpoint: str):
+    """Remove a push subscription from SQLite by endpoint."""
+    from app.tools.database import get_db
+
+    db = get_db()
+    try:
+        db.execute("DELETE FROM push_subscriptions WHERE endpoint = ?", (endpoint,))
+        db.commit()
+        logger.info(f"📲 Push subscription removed: {endpoint[:50]}...")
+    finally:
+        db.close()
+
+
+def _increment_fail_count(endpoint: str):
+    """Increment fail counter; remove subscription if too many failures."""
+    from app.tools.database import get_db
+
+    max_failures = 3
+    db = get_db()
+    try:
+        db.execute(
+            "UPDATE push_subscriptions SET fail_count = fail_count + 1 WHERE endpoint = ?",
+            (endpoint,),
+        )
+        db.commit()
+        row = db.execute(
+            "SELECT fail_count FROM push_subscriptions WHERE endpoint = ?", (endpoint,)
+        ).fetchone()
+        if row and row["fail_count"] >= max_failures:
+            db.execute("DELETE FROM push_subscriptions WHERE endpoint = ?", (endpoint,))
+            db.commit()
+            logger.warning(f"📲 Subscription removed after {max_failures} failures: {endpoint[:50]}...")
+    finally:
+        db.close()
+
+
+def _mark_success(endpoint: str):
+    """Reset fail count and update last success timestamp."""
+    from app.tools.database import get_db
+
+    db = get_db()
+    try:
+        db.execute(
+            "UPDATE push_subscriptions SET fail_count = 0, last_success_at = CURRENT_TIMESTAMP WHERE endpoint = ?",
+            (endpoint,),
+        )
+        db.commit()
+    finally:
+        db.close()
 
 
 # ── SSE (Server-Sent Events) ─────────────────────────────────────────
@@ -180,13 +271,14 @@ async def send_notification(
 
 
 def _send_web_push(payload: dict) -> int:
-    """Send Web Push to all subscribers (internal)."""
+    """Send Web Push to all subscribers from SQLite."""
     _ensure_vapid_keys()
 
     if not _vapid_private_key or not _vapid_public_key:
         return 0
 
-    if not _subscriptions:
+    subscriptions = get_all_subscriptions()
+    if not subscriptions:
         return 0
 
     try:
@@ -211,9 +303,9 @@ def _send_web_push(payload: dict) -> int:
     }
 
     sent = 0
-    failed_endpoints = []
 
-    for sub in _subscriptions:
+    for sub in subscriptions:
+        endpoint = sub.get("endpoint", "")
         try:
             webpush(
                 headers={"Urgency": "high"},
@@ -224,15 +316,10 @@ def _send_web_push(payload: dict) -> int:
                 vapid_claims=vapid_claims.copy(),
             )
             sent += 1
+            _mark_success(endpoint)
         except Exception as e:
             logger.warning(f"📲 Push failed for endpoint: {e}")
-            failed_endpoints.append(sub.get("endpoint"))
-
-    # Remove failed subscriptions
-    if failed_endpoints:
-        _subscriptions[:] = [
-            s for s in _subscriptions if s.get("endpoint") not in failed_endpoints
-        ]
+            _increment_fail_count(endpoint)
 
     return sent
 
