@@ -6,7 +6,7 @@
  * - Sends notification responses to server on action click
  */
 
-const CACHE_NAME = "sonic2life-v5";
+const CACHE_NAME = "sonic2life-v6";
 const STATIC_ASSETS = [
     "/",
     "/static/style.css",
@@ -18,11 +18,28 @@ const STATIC_ASSETS = [
 ];
 
 // ── Install: cache static assets ─────────────────────────────────────
+// Note: cache.addAll() does NOT send credentials (cookies/Basic Auth).
+// Behind nginx Basic Auth, this causes 401 errors. We use manual fetch
+// with credentials: "include" to work behind HTTP Basic Auth proxies.
 self.addEventListener("install", function (event) {
-    console.log("[SW] Install v5");
+    console.log("[SW] Install v6");
     event.waitUntil(
         caches.open(CACHE_NAME).then(function (cache) {
-            return cache.addAll(STATIC_ASSETS);
+            return Promise.all(
+                STATIC_ASSETS.map(function (url) {
+                    return fetch(url, { credentials: "include" })
+                        .then(function (response) {
+                            if (!response.ok) {
+                                console.warn("[SW] Failed to cache:", url, response.status);
+                                return; // skip this asset, don't break install
+                            }
+                            return cache.put(url, response);
+                        })
+                        .catch(function (err) {
+                            console.warn("[SW] Cache fetch error:", url, err);
+                        });
+                })
+            );
         })
     );
     self.skipWaiting();
@@ -30,7 +47,7 @@ self.addEventListener("install", function (event) {
 
 // ── Activate: clean old caches ───────────────────────────────────────
 self.addEventListener("activate", function (event) {
-    console.log("[SW] Activate v5");
+    console.log("[SW] Activate v6");
     event.waitUntil(
         caches.keys().then(function (names) {
             return Promise.all(
@@ -55,7 +72,7 @@ self.addEventListener("fetch", function (event) {
     }
 
     event.respondWith(
-        fetch(event.request)
+        fetch(event.request, { credentials: "include" })
             .then(function (response) {
                 // Cache successful GET responses
                 if (response.ok && event.request.method === "GET") {
