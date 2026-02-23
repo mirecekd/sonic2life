@@ -265,6 +265,23 @@ async function startConversation() {
 
         await openMic();
         setState(State.LISTENING, "Listening...");
+
+        // Send pending photo if one was captured before session started
+        // Delay to let the greeting finish first
+        if (pendingPhoto) {
+            var photoToSend = pendingPhoto;
+            pendingPhoto = null;
+            setTimeout(function () {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    console.log("[Camera] Sending pending photo after session start");
+                    ws.send(JSON.stringify({
+                        type: "photo",
+                        data: photoToSend
+                    }));
+                    if (cameraLabel) cameraLabel.textContent = "Sending...";
+                }
+            }, 3000);  // 3s delay to let greeting play
+        }
     } catch (err) {
         console.error("[Start]", err);
         setState(State.IDLE, "Error: " + err.message);
@@ -749,6 +766,7 @@ window.addEventListener("appinstalled", function () {
 var cameraBtn = document.getElementById("camera-btn");
 var cameraInput = document.getElementById("camera-input");
 var cameraLabel = document.getElementById("camera-label");
+var pendingPhoto = null;  // Stores photo base64 when captured while disconnected
 
 if (cameraBtn && cameraInput) {
     cameraBtn.addEventListener("click", function () {
@@ -797,10 +815,13 @@ if (cameraBtn && cameraInput) {
                         type: "photo",
                         data: base64
                     }));
+                    pendingPhoto = null;
                     cameraLabel.textContent = "Sending...";
                 } else {
-                    cameraLabel.textContent = "Not connected";
-                    setTimeout(function () { cameraLabel.textContent = "Photo"; }, 2000);
+                    // Store photo for later — will be sent when session starts
+                    pendingPhoto = base64;
+                    cameraLabel.textContent = "📷 Ready";
+                    console.log("[Camera] Photo stored as pending (no active session)");
                 }
             };
             img.src = ev.target.result;
