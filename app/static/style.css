@@ -394,6 +394,37 @@ footer {
     animation-delay: 0.3s;
 }
 
+/* ── Camera button ────────────────────────────────────────────────── */
+.camera-button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 20px;
+    border-radius: 24px;
+    border: 1.5px solid var(--border);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+.camera-button:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: var(--text-main);
+    border-color: var(--accent-idle);
+}
+
+.camera-button:active {
+    transform: scale(0.96);
+}
+
+.camera-button svg {
+    flex-shrink: 0;
+}
+
 /* ── Animations ───────────────────────────────────────────────────── */
 @keyframes pulse-out {
     0% {

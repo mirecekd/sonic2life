@@ -195,6 +195,12 @@ function handleControl(msg) {
             setState(State.LISTENING, "Listening...");
             break;
 
+        case "photo_received":
+            console.log("[Camera] Photo received by server:", msg.size_kb, "KB");
+            cameraLabel.textContent = "✓ Sent";
+            setTimeout(function () { cameraLabel.textContent = "Photo"; }, 3000);
+            break;
+
         case "done":
             stopPlayback();
             closeMic();
@@ -722,6 +728,73 @@ window.addEventListener("appinstalled", function () {
     deferredInstallPrompt = null;
     console.log("[PWA] App installed successfully! 🎉");
 });
+
+// ── Camera ────────────────────────────────────────────────────────────
+var cameraBtn = document.getElementById("camera-btn");
+var cameraInput = document.getElementById("camera-input");
+var cameraLabel = document.getElementById("camera-label");
+
+if (cameraBtn && cameraInput) {
+    cameraBtn.addEventListener("click", function () {
+        cameraInput.click();
+    });
+
+    cameraInput.addEventListener("change", function (e) {
+        var file = e.target.files[0];
+        if (!file) return;
+
+        console.log("[Camera] Photo selected:", file.name, file.size, "bytes");
+        cameraLabel.textContent = "Processing...";
+
+        var reader = new FileReader();
+        reader.onload = function (ev) {
+            var img = new Image();
+            img.onload = function () {
+                // Resize to max 1024px
+                var MAX = 1024;
+                var w = img.width;
+                var h = img.height;
+                if (w > MAX || h > MAX) {
+                    if (w > h) {
+                        h = Math.round(h * MAX / w);
+                        w = MAX;
+                    } else {
+                        w = Math.round(w * MAX / h);
+                        h = MAX;
+                    }
+                }
+
+                var canvas = document.createElement("canvas");
+                canvas.width = w;
+                canvas.height = h;
+                var ctx = canvas.getContext("2d");
+                ctx.drawImage(img, 0, 0, w, h);
+
+                // Convert to JPEG base64 (quality 0.85)
+                var base64 = canvas.toDataURL("image/jpeg", 0.85);
+                var sizeKB = Math.round(base64.length * 3 / 4 / 1024);
+                console.log("[Camera] Resized:", w, "x", h, "~" + sizeKB + "KB");
+
+                // Send via WebSocket
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({
+                        type: "photo",
+                        data: base64
+                    }));
+                    cameraLabel.textContent = "Sending...";
+                } else {
+                    cameraLabel.textContent = "Not connected";
+                    setTimeout(function () { cameraLabel.textContent = "Photo"; }, 2000);
+                }
+            };
+            img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+
+        // Reset input so same file can be selected again
+        cameraInput.value = "";
+    });
+}
 
 // ── Init ─────────────────────────────────────────────────────────────
 setState(State.IDLE);

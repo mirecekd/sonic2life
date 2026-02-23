@@ -34,9 +34,11 @@ TOOL_SPECS = [
                 "make HTTP API requests, manage medications and schedule, "
                 "manage calendar events and appointments (add, cancel, reschedule, "
                 "get today's schedule, get upcoming events), remember user preferences, "
+                "analyze photos from the user's camera (identify objects, read text, "
+                "describe scenes, identify medications), "
                 "and reason through multi-step problems. "
                 "Use this for ANY question that needs external information, "
-                "calculations, calendar/schedule management, or research."
+                "calculations, calendar/schedule management, photo analysis, or research."
             ),
             "inputSchema": {
                 "json": json.dumps({
@@ -118,6 +120,7 @@ def _build_agent_system_prompt() -> str:
         "Memory: remember(key, value, category), recall(key, category), forget(key)\n"
         "Weather: get_weather(lat, lon) – use GPS from [CONTEXT]\n"
         "Web search: web_search(query, max_results) – search the internet for current info\n"
+        "Vision: analyze_photo(question) – analyze the user's camera photo using Nova 2 Lite vision\n"
         "Location: reverse_geocode, search_places – via MCP\n"
         "Other: calculator, current_time, http_request, think\n"
     )
@@ -175,6 +178,13 @@ def _create_strands_agent():
         logger.info("  ✅ web_search")
     except Exception as e:
         logger.warning(f"  ⚠️ web_search not available: {e}")
+
+    try:
+        from app.tools.vision import analyze_photo
+        tools.append(analyze_photo)
+        logger.info("  ✅ analyze_photo (vision)")
+    except Exception as e:
+        logger.warning(f"  ⚠️ analyze_photo not available: {e}")
 
     try:
         from app.tools.weather import get_weather

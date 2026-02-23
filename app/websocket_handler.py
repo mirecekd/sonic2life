@@ -44,10 +44,18 @@ def resample_24k_to_16k(pcm_24k: bytes) -> bytes:
 # Global GPS storage (per-connection, updated by frontend)
 _current_gps = {"lat": None, "lon": None, "accuracy": None}
 
+# Global photo storage (per-connection, updated by frontend camera)
+_current_photo = None  # base64 JPEG string
+
 
 def get_current_gps():
     """Get the latest GPS coordinates from the frontend."""
     return _current_gps.copy()
+
+
+def get_current_photo():
+    """Get the latest photo captured by the user. Returns base64 string or None."""
+    return _current_photo
 
 
 async def handle_websocket(ws: WebSocket, tool_specs=None, tool_handler=None):
@@ -124,6 +132,13 @@ async def handle_websocket(ws: WebSocket, tool_specs=None, tool_handler=None):
                     _current_gps["lon"] = data.get("lon")
                     _current_gps["accuracy"] = data.get("accuracy")
                     logger.info(f"📍 GPS updated: {_current_gps['lat']}, {_current_gps['lon']}")
+
+                elif msg_type == "photo":
+                    global _current_photo
+                    _current_photo = data.get("data")
+                    size_kb = len(_current_photo) * 3 // 4 // 1024 if _current_photo else 0
+                    logger.info(f"📸 Photo received: ~{size_kb}KB")
+                    await ws.send_json({"type": "photo_received", "size_kb": size_kb})
 
                 elif msg_type == "end":
                     await cleanup()
