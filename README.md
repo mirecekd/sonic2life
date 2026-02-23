@@ -176,11 +176,14 @@ The entire UI is a single large button. Press it, talk. The AI handles everythin
 
 ### 📸 Camera & Photo Analysis
 - **Camera button** on main screen — tap to take a photo
+- **"Photo First" flow** — take a photo even before starting a conversation
+  - Photo stored as pending, camera shows **📷 Ready**
+  - Tap "Talk" → session starts → greeting plays → photo auto-sent after 3s
 - **Automatic analysis** — photo is analyzed by Nova 2 Lite vision immediately
 - No need to ask — assistant **automatically describes** what it sees
 - Identifies medications, reads text, describes objects
 - Follow-up questions via voice: *"What's the dosage?"*, *"Is this safe?"*
-- Flow: Capture → Resize (max 1024px) → Send → Auto-analyze → Nova Sonic speaks result
+- Works on mobile: camera app deactivates mic, but photo is queued and sent when session resumes
 
 ### 🔍 Web Search
 - **DuckDuckGo integration** — no API key needed
