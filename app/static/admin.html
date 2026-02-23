@@ -221,6 +221,20 @@
                     <tbody id="med-log-table"></tbody>
                 </table>
             </div>
+            <div class="card">
+                <h3>&#9200; Active Snoozes</h3>
+                <table>
+                    <thead><tr><th>Medication</th><th>Snooze Until</th><th>Created</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody id="med-snooze-table"></tbody>
+                </table>
+            </div>
+            <div class="card">
+                <h3>&#128276; Medication Notification History</h3>
+                <table>
+                    <thead><tr><th>Notification</th><th>Action</th><th>Source</th><th>Time</th></tr></thead>
+                    <tbody id="med-notif-table"></tbody>
+                </table>
+            </div>
         </div>
 
         <!-- ── Events ───────────────────────────────────────── -->
@@ -250,6 +264,13 @@
                 <table>
                     <thead><tr><th>Title</th><th>Date/Time</th><th>Reminder</th><th>Brief</th><th>Status</th><th>Actions</th></tr></thead>
                     <tbody id="evt-table"></tbody>
+                </table>
+            </div>
+            <div class="card">
+                <h3>&#128276; Event Notification History</h3>
+                <table>
+                    <thead><tr><th>Notification</th><th>Action</th><th>Source</th><th>Time</th></tr></thead>
+                    <tbody id="evt-notif-table"></tbody>
                 </table>
             </div>
         </div>
@@ -340,8 +361,8 @@
     function loadSection(tab) {
         if (tab === 'dashboard') loadDashboard();
         else if (tab === 'settings') loadSettings();
-        else if (tab === 'medications') { loadMedications(); loadMedLog(); }
-        else if (tab === 'events') loadEvents();
+        else if (tab === 'medications') { loadMedications(); loadMedLog(); loadMedSnoozes(); loadMedNotifications(); }
+        else if (tab === 'events') { loadEvents(); loadEventNotifications(); }
         else if (tab === 'memory') loadMemory();
         else if (tab === 'files') loadFiles();
     }
@@ -467,6 +488,87 @@
         tbody.innerHTML = data.log.map(l => `
             <tr><td>${esc(l.medication_name || '?')}</td><td>${fmtDt(l.taken_at)}</td><td>${esc(l.confirmed_by)}</td></tr>
         `).join('');
+    }
+
+    // ── Medication Snoozes ─────────────────────────────────────
+    async function loadMedSnoozes() {
+        const data = await api('/medication-snoozes');
+        const tbody = document.getElementById('med-snooze-table');
+        if (!data.snoozes.length) {
+            tbody.innerHTML = '<tr><td colspan="5" class="empty">No snoozes</td></tr>';
+            return;
+        }
+        const now = new Date();
+        tbody.innerHTML = data.snoozes.map(s => {
+            const until = new Date(s.snooze_until);
+            const isActive = until > now;
+            return `
+            <tr>
+                <td>${esc(s.medication_name || 'ID: ' + s.medication_id)}</td>
+                <td>${fmtDt(s.snooze_until)}</td>
+                <td style="font-size:.75rem">${fmtDt(s.created_at)}</td>
+                <td><span class="badge ${isActive ? 'badge-on' : 'badge-off'}">${isActive ? 'Active' : 'Expired'}</span></td>
+                <td class="actions">
+                    <button class="btn btn-sm btn-danger" onclick="deleteSnooze(${s.id})">Delete</button>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+    async function deleteSnooze(id) {
+        if (!confirm('Delete this snooze?')) return;
+        await api('/medication-snoozes/' + id, { method: 'DELETE' });
+        toast('Snooze deleted');
+        loadMedSnoozes();
+    }
+
+    // ── Medication Notification History ───────────────────────
+    async function loadMedNotifications() {
+        const data = await api('/notification-responses');
+        const tbody = document.getElementById('med-notif-table');
+        const medResponses = data.responses.filter(r => r.notification_id.startsWith('med_'));
+        if (!medResponses.length) {
+            tbody.innerHTML = '<tr><td colspan="4" class="empty">No medication notification responses</td></tr>';
+            return;
+        }
+        tbody.innerHTML = medResponses.map(r => {
+            const actionBadge = r.action === 'taken'
+                ? '<span class="badge badge-on">✅ Taken</span>'
+                : r.action === 'snooze'
+                ? '<span class="badge" style="background:var(--warn);color:#fff">⏰ Snoozed</span>'
+                : `<span class="badge badge-off">${esc(r.action)}</span>`;
+            return `
+            <tr>
+                <td><code style="font-size:.75rem">${esc(r.notification_id)}</code></td>
+                <td>${actionBadge}</td>
+                <td>${esc(r.source)}</td>
+                <td style="font-size:.75rem">${fmtDt(r.created_at)}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    // ── Event Notification History ────────────────────────────
+    async function loadEventNotifications() {
+        const data = await api('/notification-responses');
+        const tbody = document.getElementById('evt-notif-table');
+        const evtResponses = data.responses.filter(r => r.notification_id.startsWith('event_') || r.notification_id.startsWith('brief_'));
+        if (!evtResponses.length) {
+            tbody.innerHTML = '<tr><td colspan="4" class="empty">No event notification responses</td></tr>';
+            return;
+        }
+        tbody.innerHTML = evtResponses.map(r => {
+            const actionBadge = r.action === 'confirm'
+                ? '<span class="badge badge-on">✅ Confirmed</span>'
+                : r.action === 'dismiss'
+                ? '<span class="badge badge-off">Dismissed</span>'
+                : `<span class="badge" style="background:var(--accent2);color:#fff">${esc(r.action)}</span>`;
+            return `
+            <tr>
+                <td><code style="font-size:.75rem">${esc(r.notification_id)}</code></td>
+                <td>${actionBadge}</td>
+                <td>${esc(r.source)}</td>
+                <td style="font-size:.75rem">${fmtDt(r.created_at)}</td>
+            </tr>`;
+        }).join('');
     }
 
     // ── Events ────────────────────────────────────────────────
