@@ -397,6 +397,53 @@ class NovaSonicSession:
         })
         logger.info("👋 Greeting prompt sent – model will speak first")
 
+    async def send_photo_context(self, description: str):
+        """Inject photo analysis result into the conversation.
+
+        The model will automatically speak the description to the user.
+        """
+        if not self._is_active:
+            logger.warning("📸 Cannot inject photo context – session not active")
+            return
+
+        photo_content = str(uuid.uuid4())
+        await self._send_event({
+            "event": {
+                "contentStart": {
+                    "promptName": self._prompt_name,
+                    "contentName": photo_content,
+                    "type": "TEXT",
+                    "interactive": True,
+                    "role": "USER",
+                    "textInputConfiguration": {"mediaType": "text/plain"},
+                }
+            }
+        })
+        await self._send_event({
+            "event": {
+                "textInput": {
+                    "promptName": self._prompt_name,
+                    "contentName": photo_content,
+                    "content": (
+                        f"[SYSTEM: The user just took a photo with their camera. "
+                        f"Here is what the photo shows:\n\n{description}\n\n"
+                        f"Tell the user what you see in the photo in a friendly, clear way. "
+                        f"Keep it concise (2-3 sentences). If you see text, read it out. "
+                        f"If you see medication, identify it. Ask if they want to know more.]"
+                    ),
+                }
+            }
+        })
+        await self._send_event({
+            "event": {
+                "contentEnd": {
+                    "promptName": self._prompt_name,
+                    "contentName": photo_content,
+                }
+            }
+        })
+        logger.info("📸 Photo context injected – model will describe the photo")
+
     async def send_audio(self, pcm_bytes: bytes):
         """Queue a PCM audio chunk for sending."""
         if not self._is_active:

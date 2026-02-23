@@ -198,6 +198,22 @@ function handleControl(msg) {
         case "photo_received":
             console.log("[Camera] Photo received by server:", msg.size_kb, "KB");
             cameraLabel.textContent = "✓ Sent";
+            break;
+
+        case "photo_analyzing":
+            console.log("[Camera] Analyzing photo...");
+            cameraLabel.textContent = "🔍 Analyzing...";
+            break;
+
+        case "photo_analyzed":
+            console.log("[Camera] Photo analyzed:", msg.description);
+            cameraLabel.textContent = "📷 Photo";
+            addTranscript("system", "📸 " + msg.description);
+            break;
+
+        case "photo_error":
+            console.error("[Camera] Photo analysis error:", msg.text);
+            cameraLabel.textContent = "❌ Error";
             setTimeout(function () { cameraLabel.textContent = "Photo"; }, 3000);
             break;
 

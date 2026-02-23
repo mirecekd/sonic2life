@@ -58,6 +58,74 @@ def get_current_photo():
     return _current_photo
 
 
+async def _auto_analyze_photo(ws: WebSocket, session):
+    """Analyze the current photo in background and inject result into Nova Sonic session."""
+    try:
+        photo_data = _current_photo
+        if not photo_data:
+            return
+
+        # Notify frontend that analysis is in progress
+        await ws.send_json({"type": "photo_analyzing"})
+
+        # Call Nova 2 Lite vision directly (faster than going through Strands Agent)
+        import base64
+        import boto3
+        from app.config import AWS_REGION
+
+        if "," in photo_data:
+            photo_data = photo_data.split(",", 1)[1]
+
+        image_bytes = base64.b64decode(photo_data)
+        logger.info(f"📸 Auto-analyzing photo: {len(image_bytes)} bytes")
+
+        client = boto3.client("bedrock-runtime", region_name=AWS_REGION)
+
+        loop = asyncio.get_event_loop()
+        response = await loop.run_in_executor(None, lambda: client.converse(
+            modelId="amazon.nova-lite-v1:0",
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"image": {"format": "jpeg", "source": {"bytes": image_bytes}}},
+                    {"text": "What do you see in this image? Describe it clearly and concisely in 2-3 sentences. If you see text, read it. If you see medication, identify it."}
+                ]
+            }],
+            inferenceConfig={"maxTokens": 512, "temperature": 0.3},
+            system=[{
+                "text": (
+                    "You are a helpful vision assistant for an elderly person. "
+                    "Describe what you see clearly and concisely. "
+                    "Focus on the most important and useful information. "
+                    "If you see text, read it out. If you see medication, identify it."
+                )
+            }]
+        ))
+
+        # Extract text from response
+        content = response.get("output", {}).get("message", {}).get("content", [])
+        description = "".join(block["text"] for block in content if "text" in block)
+
+        if not description:
+            description = "I could not clearly identify what is in the photo."
+
+        logger.info(f"📸 Vision result: {description[:200]}")
+
+        # Inject into Nova Sonic session – model will speak the description
+        if session and session.is_active:
+            await session.send_photo_context(description)
+            await ws.send_json({"type": "photo_analyzed", "description": description})
+        else:
+            logger.warning("📸 Session no longer active, cannot inject photo context")
+
+    except Exception as e:
+        logger.error(f"📸 Auto-analyze error: {e}")
+        try:
+            await ws.send_json({"type": "photo_error", "text": str(e)})
+        except Exception:
+            pass
+
+
 async def handle_websocket(ws: WebSocket, tool_specs=None, tool_handler=None):
     await ws.accept()
     logger.info("🔌 WebSocket connected")
@@ -139,6 +207,10 @@ async def handle_websocket(ws: WebSocket, tool_specs=None, tool_handler=None):
                     size_kb = len(_current_photo) * 3 // 4 // 1024 if _current_photo else 0
                     logger.info(f"📸 Photo received: ~{size_kb}KB")
                     await ws.send_json({"type": "photo_received", "size_kb": size_kb})
+
+                    # Auto-analyze photo and inject result into active session
+                    if session and session.is_active and _current_photo:
+                        asyncio.create_task(_auto_analyze_photo(ws, session))
 
                 elif msg_type == "end":
                     await cleanup()
