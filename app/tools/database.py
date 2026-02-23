@@ -49,6 +49,24 @@ def _init_tables(conn: sqlite3.Connection):
             FOREIGN KEY (medication_id) REFERENCES medications(id)
         );
 
+        -- Notification responses (persisted)
+        CREATE TABLE IF NOT EXISTS notification_responses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            notification_id TEXT NOT NULL,
+            action TEXT NOT NULL,
+            source TEXT DEFAULT 'banner',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Medication snoozes
+        CREATE TABLE IF NOT EXISTS medication_snoozes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            medication_id INTEGER NOT NULL,
+            snooze_until TIMESTAMP NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (medication_id) REFERENCES medications(id)
+        );
+
         -- User memory/preferences
         CREATE TABLE IF NOT EXISTS memory (
             key TEXT PRIMARY KEY,

@@ -5,7 +5,7 @@ import logging
 from datetime import datetime, timedelta
 
 from app.tools.database import get_db
-from app.push import send_notification
+from app.push import send_notification, is_medication_snoozed
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +73,11 @@ async def _check_medications():
             if already:
                 continue
 
+            # Check if snoozed
+            if is_medication_snoozed(med["id"]):
+                logger.info(f"💤 Medication '{med['name']}' is snoozed, skipping")
+                continue
+
             # Send notification!
             dosage_text = f" ({med['dosage']})" if med["dosage"] else ""
             body = f"💊 Time to take: {med['name']}{dosage_text}"
@@ -91,6 +96,48 @@ async def _check_medications():
                 ],
             )
             logger.info(f"💊 Medication reminder sent: {med['name']} at {sched_time}")
+
+        # ── Check for expired snoozes (re-send reminder after snooze period) ──
+        today_str = now.strftime("%Y-%m-%d")
+        expired_snoozes = conn.execute("""
+            SELECT DISTINCT ms.medication_id, m.name, m.dosage, m.notes
+            FROM medication_snoozes ms
+            JOIN medications m ON ms.medication_id = m.id
+            WHERE ms.snooze_until <= ?
+              AND ms.snooze_until >= ?
+              AND m.active = 1
+              AND ms.medication_id NOT IN (
+                  SELECT medication_id FROM medication_log
+                  WHERE taken_at LIKE ?
+              )
+        """, (
+            now.isoformat(),
+            (now - timedelta(minutes=6)).isoformat(),  # within last scheduler cycle
+            f"{today_str}%",
+        )).fetchall()
+
+        for med in expired_snoozes:
+            # Don't re-send if currently snoozed again
+            if is_medication_snoozed(med["medication_id"]):
+                continue
+
+            dosage_text = f" ({med['dosage']})" if med["dosage"] else ""
+            body = f"💊 Reminder (after snooze): {med['name']}{dosage_text}"
+            if med["notes"]:
+                body += f"\n{med['notes']}"
+
+            notification_id = f"med_{med['medication_id']}_{today_str}_snooze"
+            await send_notification(
+                title="Medication Reminder",
+                body=body,
+                tag="medication",
+                notification_id=notification_id,
+                actions=[
+                    {"action": "taken", "title": "✅ Taken"},
+                    {"action": "snooze", "title": "⏰ Snooze 15min"},
+                ],
+            )
+            logger.info(f"💊 Post-snooze reminder sent: {med['name']}")
 
         conn.close()
     except Exception as e:

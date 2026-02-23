@@ -18,8 +18,7 @@ logger = logging.getLogger(__name__)
 # SSE clients (asyncio.Queue per connected client)
 _sse_clients: list[asyncio.Queue] = []
 
-# Notification response log (notification_id → response info)
-_notification_responses: dict[str, dict] = {}
+# Notification response log – now persisted to SQLite (see record/get functions below)
 
 # VAPID keys
 _vapid_private_key = None
@@ -279,18 +278,111 @@ async def broadcast_to_sse(data: dict):
 # ── Notification Response ─────────────────────────────────────────────
 
 def record_notification_response(notification_id: str, action: str, source: str):
-    """Record a user's response to a notification."""
-    _notification_responses[notification_id] = {
-        "action": action,
-        "source": source,
-        "timestamp": time.time(),
-    }
+    """Record a user's response to a notification (persisted to SQLite)."""
+    from app.tools.database import get_db
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO notification_responses (notification_id, action, source) VALUES (?, ?, ?)",
+        (notification_id, action, source),
+    )
+    conn.commit()
+    conn.close()
     logger.info(f"📋 Notification response: id={notification_id} action={action} source={source}")
 
 
-def get_notification_responses() -> dict:
-    """Get all notification responses (for debugging/API)."""
-    return dict(_notification_responses)
+def get_notification_responses() -> list:
+    """Get all notification responses (persisted in SQLite)."""
+    from app.tools.database import get_db
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT notification_id, action, source, created_at FROM notification_responses ORDER BY created_at DESC LIMIT 200"
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+# ── Medication Snooze ─────────────────────────────────────────────
+
+def add_medication_snooze(medication_id: int, minutes: int = 15):
+    """Snooze a medication reminder for N minutes."""
+    from app.tools.database import get_db
+    from datetime import datetime, timedelta
+    snooze_until = (datetime.now() + timedelta(minutes=minutes)).isoformat()
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO medication_snoozes (medication_id, snooze_until) VALUES (?, ?)",
+        (medication_id, snooze_until),
+    )
+    conn.commit()
+    conn.close()
+    logger.info(f"⏰ Medication {medication_id} snoozed until {snooze_until}")
+
+
+def is_medication_snoozed(medication_id: int) -> bool:
+    """Check if a medication is currently snoozed."""
+    from app.tools.database import get_db
+    from datetime import datetime
+    conn = get_db()
+    row = conn.execute(
+        "SELECT snooze_until FROM medication_snoozes WHERE medication_id = ? ORDER BY snooze_until DESC LIMIT 1",
+        (medication_id,),
+    ).fetchone()
+    conn.close()
+    if not row:
+        return False
+    try:
+        snooze_until = datetime.fromisoformat(row["snooze_until"])
+        return datetime.now() < snooze_until
+    except (ValueError, TypeError):
+        return False
+
+
+def confirm_medication_from_notification(notification_id: str):
+    """Extract medication ID from notification_id and confirm it as taken."""
+    from app.tools.database import get_db
+    # notification_id format: "med_{med_id}_{date}"
+    parts = notification_id.split("_")
+    if len(parts) < 3 or parts[0] != "med":
+        logger.warning(f"⚠️ Cannot parse medication notification_id: {notification_id}")
+        return
+
+    try:
+        med_id = int(parts[1])
+    except ValueError:
+        logger.warning(f"⚠️ Invalid medication ID in notification_id: {notification_id}")
+        return
+
+    conn = get_db()
+    row = conn.execute("SELECT id, name FROM medications WHERE id = ?", (med_id,)).fetchone()
+    if not row:
+        conn.close()
+        logger.warning(f"⚠️ Medication ID {med_id} not found")
+        return
+
+    # Log to medication_log
+    conn.execute(
+        "INSERT INTO medication_log (medication_id, confirmed_by) VALUES (?, 'notification')",
+        (med_id,),
+    )
+    conn.commit()
+    conn.close()
+    logger.info(f"💊 Medication '{row['name']}' confirmed via notification button")
+
+
+def snooze_medication_from_notification(notification_id: str, minutes: int = 15):
+    """Extract medication ID from notification_id and snooze it."""
+    parts = notification_id.split("_")
+    if len(parts) < 3 or parts[0] != "med":
+        logger.warning(f"⚠️ Cannot parse medication notification_id: {notification_id}")
+        return
+
+    try:
+        med_id = int(parts[1])
+    except ValueError:
+        logger.warning(f"⚠️ Invalid medication ID in notification_id: {notification_id}")
+        return
+
+    add_medication_snooze(med_id, minutes)
 
 
 # ── Send Notification ─────────────────────────────────────────────────

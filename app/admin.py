@@ -172,6 +172,48 @@ async def list_medication_log():
     return {"log": [dict(r) for r in rows]}
 
 
+# ── Notification Responses API ────────────────────────────────────
+
+@router.get("/api/admin/notification-responses")
+async def list_notification_responses():
+    """List all notification responses (persisted in SQLite)."""
+    conn = get_db()
+    rows = conn.execute("""
+        SELECT id, notification_id, action, source, created_at
+        FROM notification_responses
+        ORDER BY created_at DESC
+        LIMIT 200
+    """).fetchall()
+    conn.close()
+    return {"responses": [dict(r) for r in rows]}
+
+
+@router.get("/api/admin/medication-snoozes")
+async def list_medication_snoozes():
+    """List active medication snoozes."""
+    conn = get_db()
+    rows = conn.execute("""
+        SELECT ms.id, ms.medication_id, m.name as medication_name,
+               ms.snooze_until, ms.created_at
+        FROM medication_snoozes ms
+        LEFT JOIN medications m ON ms.medication_id = m.id
+        ORDER BY ms.created_at DESC
+        LIMIT 100
+    """).fetchall()
+    conn.close()
+    return {"snoozes": [dict(r) for r in rows]}
+
+
+@router.delete("/api/admin/medication-snoozes/{snooze_id}")
+async def delete_medication_snooze(snooze_id: int):
+    """Delete a medication snooze."""
+    conn = get_db()
+    conn.execute("DELETE FROM medication_snoozes WHERE id = ?", (snooze_id,))
+    conn.commit()
+    conn.close()
+    return {"status": "deleted", "id": snooze_id}
+
+
 # ── Memory / Preferences API ─────────────────────────────────────
 
 @router.get("/api/admin/memory")

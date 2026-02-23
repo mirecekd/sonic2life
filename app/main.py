@@ -25,6 +25,8 @@ from app.push import (
     remove_sse_client,
     record_notification_response,
     get_notification_responses,
+    confirm_medication_from_notification,
+    snooze_medication_from_notification,
 )
 
 # Logging
@@ -190,12 +192,21 @@ class NotificationResponse(BaseModel):
 
 @app.post("/api/push/respond")
 async def push_respond(response: NotificationResponse):
-    """Record user's response to a notification (e.g., medication confirmation)."""
+    """Record user's response to a notification and execute the action."""
+    # Always persist the response
     record_notification_response(
         notification_id=response.notification_id,
         action=response.action,
         source=response.source,
     )
+
+    # Route medication actions
+    if response.notification_id.startswith("med_"):
+        if response.action == "taken":
+            confirm_medication_from_notification(response.notification_id)
+        elif response.action == "snooze":
+            snooze_medication_from_notification(response.notification_id, minutes=15)
+
     return {
         "status": "ok",
         "notification_id": response.notification_id,
