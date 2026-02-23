@@ -76,7 +76,9 @@ The entire UI is a single large button. Press it, talk. The AI handles everythin
 │  │  ├── 💊 Medication (5 tools)   ├── AWS Knowledge    │ │
 │  │  ├── 📅 Events (5 tools)       └── Amazon Location  │ │
 │  │  ├── 🧠 Memory (3 tools)                           │ │
-│  │  ├── 🌤️ Weather                                    │ │
+│  │  ├── 🌤️ Weather + Forecast                         │ │
+│  │  ├── 📸 Vision (auto photo)                         │ │
+│  │  ├── 🔍 Web Search                                 │ │
 │  │  └── 🔧 Utilities                                  │ │
 │  └──────────────────┬──────────────────────────────────┘ │
 │                     ▼                                    │
@@ -141,10 +143,15 @@ The entire UI is a single large button. Press it, talk. The AI handles everythin
 - Multi-stop route optimization ("I need the pharmacy AND the post office")
 - Search for places by name or category
 
-### 🌤️ Weather
-- Current conditions and forecast via OpenWeatherMap
-- Clothing recommendations based on weather
+### 🌤️ Weather & Forecast (Open-Meteo)
+- **No API key needed** — uses Open-Meteo free API
+- Current conditions (temperature, humidity, wind, precipitation)
+- **Hourly forecast** — next 24 hours, every 3 hours
+- **Daily forecast** — 3 days ahead with min/max temps, rain chance, sunrise/sunset
+- WMO weather codes mapped to human-readable descriptions
+- Senior-friendly recommendations (cold/hot/rain/wind/snow)
 - Location-aware (uses GPS automatically)
+- Ask: *"How will the weather be tomorrow morning?"*
 
 ### 👤 User Profile & Personalization
 - Admin-configurable user profile (name, full name, phone)
@@ -166,6 +173,19 @@ The entire UI is a single large button. Press it, talk. The AI handles everythin
   - "✅ Taken" → logs medication to `medication_log` (visible in admin history)
   - "⏰ Snooze 15min" → stores snooze in SQLite, scheduler re-sends after expiry
 - All notification responses persisted to SQLite
+
+### 📸 Camera & Photo Analysis
+- **Camera button** on main screen — tap to take a photo
+- **Automatic analysis** — photo is analyzed by Nova 2 Lite vision immediately
+- No need to ask — assistant **automatically describes** what it sees
+- Identifies medications, reads text, describes objects
+- Follow-up questions via voice: *"What's the dosage?"*, *"Is this safe?"*
+- Flow: Capture → Resize (max 1024px) → Send → Auto-analyze → Nova Sonic speaks result
+
+### 🔍 Web Search
+- **DuckDuckGo integration** — no API key needed
+- Search the internet for current information via voice
+- Ask: *"Search for side effects of Metformin"*
 
 ### 📱 PWA (Progressive Web App)
 - Installable on phone home screen
@@ -291,7 +311,6 @@ Open `http://localhost:5005` in your browser.
 | `AWS_REGION` | Yes | AWS region (default: `eu-north-1`) |
 | `NOVA_SONIC_MODEL_ID` | No | Default: `amazon.nova-2-sonic-v1:0` |
 | `NOVA_SONIC_VOICE_ID` | No | Default: `tiffany` |
-| `OWM_API_KEY` | No | OpenWeatherMap API key (weather disabled if empty) |
 | `VAPID_PRIVATE_KEY` | No | Auto-generated if empty (raw urlsafe base64) |
 | `VAPID_PUBLIC_KEY` | No | Auto-generated if empty (raw urlsafe base64) |
 | `HOST` | No | Default: `0.0.0.0` |
@@ -324,10 +343,12 @@ sonic2life/
 │   │   └── icons/              # PWA icons (192px, 512px)
 │   └── tools/
 │       ├── database.py         # SQLite init, table creation
-│       ├── weather.py          # OpenWeatherMap integration
+│       ├── weather.py          # Open-Meteo weather + forecast (free, no API key)
 │       ├── medication.py       # 5 medication management tools
 │       ├── memory.py           # 3 memory/preference tools
-│       └── events.py           # 5 calendar/event tools
+│       ├── events.py           # 5 calendar/event tools
+│       ├── web_search.py       # DuckDuckGo web search (no API key)
+│       └── vision.py           # Photo analysis via Nova 2 Lite vision
 ├── memory-bank/                # Project documentation (Cline memory bank)
 ├── requirements.txt
 ├── Dockerfile
@@ -345,6 +366,7 @@ sonic2life/
 |-------|------------|
 | **Voice AI** | Amazon Nova 2 Sonic (Bedrock, bidirectional streaming) |
 | **Agent Reasoning** | Amazon Nova 2 Lite + Strands Agents framework |
+| **Vision** | Amazon Nova 2 Lite (Bedrock Converse API) for photo analysis |
 | **Location** | Amazon Location Service (via MCP server) |
 | **Knowledge** | AWS Knowledge Base (via MCP server) |
 | **Backend** | Python 3.12, FastAPI, uvicorn |
