@@ -398,13 +398,13 @@ footer {
 .camera-button {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 10px 20px;
-    border-radius: 24px;
+    gap: 10px;
+    padding: 16px 32px;
+    border-radius: 32px;
     border: 1.5px solid var(--border);
     background: rgba(255, 255, 255, 0.06);
     color: var(--text-dim);
-    font-size: 0.85rem;
+    font-size: 1.05rem;
     cursor: pointer;
     transition: background 0.2s, color 0.2s, border-color 0.2s;
     -webkit-tap-highlight-color: transparent;
