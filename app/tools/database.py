@@ -100,6 +100,11 @@ def _init_tables(conn: sqlite3.Connection):
 def _seed_default_settings(conn: sqlite3.Connection):
     """Insert default settings if they don't exist yet."""
     defaults = [
+        # User profile
+        ("user_name", "", "User's first name for voice greeting (e.g. 'Miroslav')"),
+        ("user_full_name", "", "User's full name for notifications/messages (e.g. 'Miroslav Dvořák')"),
+        ("user_phone", "", "User's phone number for emergency/contacts"),
+        # App settings
         ("timezone", "Europe/Prague", "Application timezone for scheduler"),
         ("language", "en", "UI language (en/cs)"),
         ("voice_id", "tiffany", "Nova Sonic voice ID"),

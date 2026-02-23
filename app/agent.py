@@ -62,6 +62,66 @@ _strands_agent = None
 _agent_lock = asyncio.Lock()
 
 
+def _load_user_profile_for_agent() -> dict:
+    """Load user profile settings from SQLite for agent prompt personalization."""
+    try:
+        from app.tools.database import get_db
+        conn = get_db()
+        profile = {}
+        for key in ("user_name", "user_full_name", "user_phone"):
+            row = conn.execute(
+                "SELECT value FROM settings WHERE key = ?", (key,)
+            ).fetchone()
+            profile[key] = row["value"] if row and row["value"] else ""
+        conn.close()
+        return profile
+    except Exception as e:
+        logger.warning(f"⚠️ Could not load user profile for agent: {e}")
+        return {}
+
+
+def _build_agent_system_prompt() -> str:
+    """Build comprehensive system prompt for the Strands Agent."""
+    profile = _load_user_profile_for_agent()
+    user_name = profile.get("user_name", "")
+    user_full_name = profile.get("user_full_name", "")
+    user_phone = profile.get("user_phone", "")
+
+    user_block = ""
+    if user_name:
+        user_block = (
+            f"\nUSER PROFILE:\n"
+            f"- Name: {user_name}\n"
+            f"{f'- Full name: {user_full_name}' + chr(10) if user_full_name else ''}"
+            f"{f'- Phone: {user_phone}' + chr(10) if user_phone else ''}"
+            f"Use their name when confirming important actions.\n"
+        )
+
+    return (
+        "You are Sonic2Life's reasoning engine – a backend agent that processes requests "
+        "from a voice assistant for seniors living independently. "
+        "Your responses will be READ ALOUD by a voice model, so keep them SHORT (2-3 sentences max).\n"
+        + user_block +
+        "\nRULES:\n"
+        "1. LANGUAGE: ALWAYS respond in the SAME language as the user's question. "
+        "Translate tool outputs into the user's language.\n"
+        "2. BREVITY: Max 2-3 sentences. No markdown, no bullet points – plain spoken text.\n"
+        "3. ACCURACY: Use tools for real data. Never guess dates, times, or facts.\n"
+        "4. CONFIRMATION: When adding events or medications, confirm the key details back to the user.\n"
+        "\nAVAILABLE TOOLS:\n"
+        "Medication: get_medication_schedule, add_medication(name, schedule_time, dosage, days, notes), "
+        "confirm_medication_taken(medication_name), remove_medication(medication_name), "
+        "get_medication_history(medication_name, days)\n"
+        "Calendar: get_upcoming_events(days), get_todays_schedule, "
+        "add_event(title, event_time, description, reminder_minutes, morning_brief), "
+        "cancel_event(event_title), update_event_time(event_title, new_time)\n"
+        "Memory: remember(key, value, category), recall(key, category), forget(key)\n"
+        "Weather: get_weather(lat, lon) – use GPS from [CONTEXT]\n"
+        "Location: reverse_geocode, search_places – via MCP\n"
+        "Other: calculator, current_time, http_request, think\n"
+    )
+
+
 def _create_strands_agent():
     """Create and configure the Strands Agent with all available tools."""
     from strands import Agent
@@ -211,19 +271,7 @@ def _create_strands_agent():
     agent = Agent(
         model=model,
         tools=tools,
-        system_prompt=(
-            "ABSOLUTE RULE #1 – LANGUAGE: You MUST respond in the SAME language as the user's question. "
-            "If the question is in English, your ENTIRE response MUST be in English. "
-            "If the question is in Czech, respond in Czech. "
-            "If the question is in German, respond in German. "
-            "NEVER switch language based on tool output data (e.g. Czech place names from geocoding). "
-            "Always TRANSLATE tool results into the question's language. "
-            "For example, if asked in English about a Czech location, respond in English: "
-            "'You are in Vřesina, at Sportovní 7/7, 747 20 Vřesina, Czechia.' "
-            "RULE #2 – BREVITY: Answer concisely in 2-3 sentences. "
-            "Keep answers short and factual – they will be read aloud by a voice assistant. "
-            "Use tools when needed to get accurate, up-to-date information."
-        ),
+        system_prompt=_build_agent_system_prompt(),
     )
 
     logger.info("🤖 Strands Agent created with %d tools", len(tools))

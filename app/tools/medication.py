@@ -24,7 +24,7 @@ def get_medication_schedule() -> str:
     db.close()
 
     if not rows:
-        return json.dumps({"medications": [], "message": "Žádné léky nejsou naplánovány."}, ensure_ascii=False)
+        return json.dumps({"medications": [], "message": "No medications scheduled."}, ensure_ascii=False)
 
     meds = []
     for r in rows:
@@ -66,7 +66,7 @@ def add_medication(name: str, schedule_time: str, dosage: str = "", days: str = 
     logger.info(f"💊 Added medication: {name} at {schedule_time}")
     return json.dumps({
         "success": True,
-        "message": f"Lék '{name}' přidán na {schedule_time}.",
+        "message": f"Medication '{name}' added at {schedule_time}.",
     }, ensure_ascii=False)
 
 
@@ -92,7 +92,7 @@ def confirm_medication_taken(medication_name: str) -> str:
         db.close()
         return json.dumps({
             "success": False,
-            "message": f"Lék '{medication_name}' nebyl nalezen v rozvrhu.",
+            "message": f"Medication '{medication_name}' not found in schedule.",
         }, ensure_ascii=False)
 
     # Log it
@@ -107,7 +107,7 @@ def confirm_medication_taken(medication_name: str) -> str:
     logger.info(f"💊 Confirmed: {row['name']} taken at {now}")
     return json.dumps({
         "success": True,
-        "message": f"Zaznamenáno: {row['name']} užit v {now}.",
+        "message": f"Confirmed: {row['name']} taken at {now}.",
     }, ensure_ascii=False)
 
 
@@ -133,13 +133,13 @@ def remove_medication(medication_name: str) -> str:
     if affected == 0:
         return json.dumps({
             "success": False,
-            "message": f"Lék '{medication_name}' nebyl nalezen.",
+            "message": f"Medication '{medication_name}' not found.",
         }, ensure_ascii=False)
 
     logger.info(f"💊 Removed medication: {medication_name}")
     return json.dumps({
         "success": True,
-        "message": f"Lék '{medication_name}' byl odebrán z rozvrhu.",
+        "message": f"Medication '{medication_name}' removed from schedule.",
     }, ensure_ascii=False)
 
 

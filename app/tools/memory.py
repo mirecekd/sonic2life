@@ -34,7 +34,7 @@ def remember(key: str, value: str, category: str = "preference") -> str:
     logger.info(f"🧠 Remembered: {key} = {value} [{category}]")
     return json.dumps({
         "success": True,
-        "message": f"Zapamatováno: {key} = {value}",
+        "message": f"Remembered: {key} = {value}",
     }, ensure_ascii=False)
 
 
@@ -59,7 +59,7 @@ def recall(key: str = "", category: str = "") -> str:
         db.close()
 
         if not row:
-            return json.dumps({"found": False, "message": f"Nemám žádnou informaci o '{key}'."}, ensure_ascii=False)
+            return json.dumps({"found": False, "message": f"No information stored for '{key}'."}, ensure_ascii=False)
 
         logger.info(f"🧠 Recalled: {key} = {row['value']}")
         return json.dumps({
@@ -83,7 +83,7 @@ def recall(key: str = "", category: str = "") -> str:
         memories = [{"key": r["key"], "value": r["value"], "category": r["category"]} for r in rows]
 
         if not memories:
-            return json.dumps({"memories": [], "message": "Zatím si nic nepamatuji."}, ensure_ascii=False)
+            return json.dumps({"memories": [], "message": "No memories stored yet."}, ensure_ascii=False)
 
         logger.info(f"🧠 Recalled {len(memories)} memories")
         return json.dumps({"memories": memories}, ensure_ascii=False)
@@ -106,7 +106,7 @@ def forget(key: str) -> str:
     db.close()
 
     if affected == 0:
-        return json.dumps({"success": False, "message": f"Nic o '{key}' jsem nevěděl/a."}, ensure_ascii=False)
+        return json.dumps({"success": False, "message": f"No memory found for '{key}'."}, ensure_ascii=False)
 
     logger.info(f"🧠 Forgot: {key}")
-    return json.dumps({"success": True, "message": f"Zapomenuto: {key}"}, ensure_ascii=False)
+    return json.dumps({"success": True, "message": f"Forgotten: {key}"}, ensure_ascii=False)

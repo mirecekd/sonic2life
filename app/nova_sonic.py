@@ -34,6 +34,7 @@ from app.config import (
     NOVA_SONIC_VOICE_ID,
     NOVA_SONIC_SYSTEM_PROMPT,
 )
+from app.tools.database import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,110 @@ logging.getLogger("awscrt").setLevel(logging.ERROR)
 
 import warnings
 warnings.filterwarnings("ignore", message=".*InvalidStateError.*CANCELLED.*")
+
+
+def _load_user_profile() -> dict:
+    """Load user profile settings from SQLite for prompt personalization."""
+    try:
+        conn = get_db()
+        profile = {}
+        for key in ("user_name", "user_full_name", "user_phone", "system_prompt"):
+            row = conn.execute(
+                "SELECT value FROM settings WHERE key = ?", (key,)
+            ).fetchone()
+            profile[key] = row["value"] if row and row["value"] else ""
+        conn.close()
+        return profile
+    except Exception as e:
+        logger.warning(f"⚠️ Could not load user profile: {e}")
+        return {}
+
+
+def _build_system_prompt(profile: dict) -> str:
+    """Build the Nova Sonic system prompt with user personalization."""
+    # Allow full override from admin settings
+    if profile.get("system_prompt"):
+        return profile["system_prompt"]
+
+    # Allow env var override
+    import os
+    env_prompt = os.getenv("NOVA_SONIC_SYSTEM_PROMPT", "")
+    if env_prompt:
+        return env_prompt
+
+    user_name = profile.get("user_name", "")
+    user_full_name = profile.get("user_full_name", "")
+    user_phone = profile.get("user_phone", "")
+
+    # Build personalization block
+    user_block = ""
+    if user_name:
+        user_block = (
+            f"USER PROFILE: The user's name is {user_name}"
+            f"{f' ({user_full_name})' if user_full_name else ''}. "
+            f"{f'Phone: {user_phone}. ' if user_phone else ''}"
+            f"Address them by name occasionally – in greetings, confirmations, "
+            f"and important moments. Do NOT use their name in every sentence. "
+        )
+
+    return (
+        # Language rule
+        "CRITICAL LANGUAGE RULE: You MUST detect the language the user speaks and ALWAYS reply "
+        "in THAT SAME language. If the user speaks English, reply in English. "
+        "If Czech, reply in Czech. If German, reply in German. "
+        "NEVER default to any particular language – always match the user's language "
+        "from their very first word. "
+        # Identity
+        "You are Sonic2Life – a kind, patient voice assistant for seniors living independently. "
+        # User profile
+        + user_block +
+        # Personality
+        "Your traits: "
+        "- Speak SLOWLY, CLEARLY and in an EASY-TO-UNDERSTAND way. "
+        "- Use short sentences (max 2-3 at a time). "
+        "- Be warm, empathetic and patient – like a good grandchild. "
+        "- Never rush. If the user does not understand, rephrase. "
+        "- Address the user politely (formal 'you'). "
+        # Tools
+        "- You have access to the askAgent tool – a research assistant that can: "
+        "  search the web, find location and nearby places (has access to the user's GPS), "
+        "  check weather, manage medications, remember user preferences, "
+        "  manage calendar events and appointments, "
+        "  calculate, check date/time, make HTTP requests and solve complex problems. "
+        "- You MUST use askAgent for: "
+        "  * Location questions ('where am I', 'what is nearby', 'find the nearest...') "
+        "  * Weather questions ('what is the weather', 'will it rain') "
+        "  * Medication management ('what meds do I have', 'add a medication', 'I took my pill') "
+        "  * Calendar/events ('schedule a doctor appointment', 'what is my schedule today', "
+        "    'when is my next appointment', 'cancel the dentist', 'reschedule to Friday') "
+        "  * Today's schedule ('what do I have today', 'what is planned for today') "
+        "  * Memory ('remember that I like...', 'what do you know about me') "
+        "  * Any question that needs facts, real-time information or calculations "
+        "- When you need to use askAgent, just call it directly without announcing it first. "
+        "  The user interface will show a visual indicator that you are working. "
+        "  After getting the result, speak the answer naturally. "
+        # Health
+        "- If the user says they feel unwell or have a health problem, "
+        "  ask for details and offer to contact a close person or emergency services. "
+    )
+
+
+def _build_greeting_prompt(profile: dict) -> str:
+    """Build personalized greeting prompt."""
+    user_name = profile.get("user_name", "")
+    if user_name:
+        return (
+            f"[SYSTEM: The user just connected. Greet them warmly BY NAME. "
+            f"Say something like 'Hello {user_name}! How can I help you today?' "
+            f"Keep it short and friendly. Remember to match "
+            f"the user's language once they start speaking.]"
+        )
+    return (
+        "[SYSTEM: The user just connected. Greet them warmly and ask "
+        "how you can help today. Say something like 'Hello! How can I "
+        "help you today?' Keep it short and friendly. Remember to match "
+        "the user's language once they start speaking.]"
+    )
 
 
 class NovaSonicSession:
@@ -58,6 +163,12 @@ class NovaSonicSession:
         self.tool_specs = tool_specs or []
         self.tool_handler = tool_handler
         self.voice_id = voice_id or NOVA_SONIC_VOICE_ID
+
+        # Load user profile and build personalized prompts
+        self._user_profile = _load_user_profile()
+        self._system_prompt = _build_system_prompt(self._user_profile)
+        self._greeting_prompt = _build_greeting_prompt(self._user_profile)
+        logger.info(f"👤 User profile loaded: {self._user_profile.get('user_name', '(not set)')}")
 
         self._stream = None
         self._client = None
@@ -174,7 +285,7 @@ class NovaSonicSession:
                 "textInput": {
                     "promptName": self._prompt_name,
                     "contentName": system_content,
-                    "content": NOVA_SONIC_SYSTEM_PROMPT,
+                    "content": self._system_prompt,
                 }
             }
         })
@@ -207,12 +318,7 @@ class NovaSonicSession:
                 "textInput": {
                     "promptName": self._prompt_name,
                     "contentName": greeting_content,
-                    "content": (
-                        "[SYSTEM: The user just connected. Greet them warmly and ask "
-                        "how you can help today. Say something like 'Hello! How can I "
-                        "help you today?' Keep it short and friendly. Remember to match "
-                        "the user's language once they start speaking.]"
-                    ),
+                    "content": self._greeting_prompt,
                 }
             }
         })
