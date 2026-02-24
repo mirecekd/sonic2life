@@ -442,6 +442,6 @@ MIT License — see [LICENSE](LICENSE) for details.
 
 ## 👨‍💻 Author
 
-Built with ❤️ for the [Amazon Nova AI Hackathon](https://amazon-nova.devpost.com/)
+Built with ❤️ for the [Amazon Nova AI Hackathon](https://amazon-nova.devpost.com/) by mirecekd@gmail.com
 
 **#AmazonNova**
