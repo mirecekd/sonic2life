@@ -45,7 +45,7 @@ The entire UI is a single large button. Press it, talk. The AI handles everythin
 ```
 ┌──────────────────────────────────────────────────────────┐
 │                    Browser (PWA)                         │
-│ ┌──────────┐ ┌──────────┐ ┌─────────┐ ┌──────────────┐   │
+│ ┌───────────┐ ┌──────────┐ ┌─────────┐ ┌──────────────┐  │
 │ │ Mic/Audio │ │   GPS    │ │  Push   │ │    Admin     │  │
 │ │ Capture   │ │ Tracking │ │ Notifs  │ │    Panel     │  │
 │ └─────┬─────┘ └────┬─────┘ └───┬─────┘ └──────┬───────┘  │
