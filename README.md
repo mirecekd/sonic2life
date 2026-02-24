@@ -202,6 +202,9 @@ The entire UI is a single large button. Press it, talk. The AI handles everythin
 - Scheduler configuration (enable/disable, interval, timezone)
 - Database backup & file management
 - Dashboard with statistics overview
+- **Push Subscriptions management** — view all subscriptions with endpoint, user agent, created date, last success, fail count
+  - Per-subscription delete, bulk "Delete All", "Delete Stale" (failed deliveries)
+  - Dashboard stats card shows subscription count + stale count
 
 ---
 
