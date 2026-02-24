@@ -177,6 +177,29 @@
                 <h3>&#128197; Upcoming Events</h3>
                 <ul class="upcoming-list" id="dashboard-upcoming"></ul>
             </div>
+            <div class="card mt-1">
+                <h3>&#128244; Push Subscriptions</h3>
+                <div style="margin-bottom:0.5rem;display:flex;gap:0.5rem;flex-wrap:wrap">
+                    <button class="btn btn-sm" onclick="loadPushSubscriptions()" title="Refresh">🔄 Refresh</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteAllPushSubs()" title="Delete all subscriptions">🗑️ Delete All</button>
+                    <button class="btn btn-sm btn-warning" onclick="deleteStalePushSubs()" title="Delete subscriptions with failures">⚠️ Delete Stale</button>
+                </div>
+                <div style="overflow-x:auto">
+                    <table class="data-table" id="push-subs-table">
+                        <thead>
+                            <tr>
+                                <th>Endpoint</th>
+                                <th>User Agent</th>
+                                <th>Created</th>
+                                <th>Last Success</th>
+                                <th>Fails</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="push-subs-body"></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
 
         <!-- ── Settings ─────────────────────────────────────── -->
@@ -375,6 +398,7 @@
             <div class="stat-card"><div class="num">${d.active_events}</div><div class="label">Active Events</div></div>
             <div class="stat-card"><div class="num">${d.memory_entries}</div><div class="label">Memory Entries</div></div>
             <div class="stat-card"><div class="num"><span class="badge ${d.scheduler.enabled === 'true' ? 'badge-on' : 'badge-off'}">${d.scheduler.enabled === 'true' ? 'ON' : 'OFF'}</span></div><div class="label">Scheduler (every ${d.scheduler.interval_minutes} min)</div></div>
+            <div class="stat-card"><div class="num">${d.push_subscriptions}${d.push_stale > 0 ? ' <span style="font-size:0.7em;color:var(--accent)">('+d.push_stale+' stale)</span>' : ''}</div><div class="label">Push Subscriptions</div></div>
         `;
         const ul = document.getElementById('dashboard-upcoming');
         if (!d.upcoming_events.length) {
@@ -384,7 +408,58 @@
                 `<li><strong>${fmtDt(e.event_time)}</strong> &mdash; ${esc(e.title)} <span style="color:var(--text-dim)">(reminder ${e.reminder_minutes}min before)</span></li>`
             ).join('');
         }
+        loadPushSubscriptions();
     }
+
+    // ── Push Subscriptions ─────────────────────────────────────
+    async function loadPushSubscriptions() {
+        try {
+            const subs = await api('/push-subscriptions');
+            const tbody = document.getElementById('push-subs-body');
+            if (!subs.length) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-dim)">No push subscriptions</td></tr>';
+                return;
+            }
+            tbody.innerHTML = subs.map(s => {
+                const failBadge = s.fail_count > 0
+                    ? `<span class="badge badge-off">${s.fail_count}</span>`
+                    : `<span class="badge badge-on">0</span>`;
+                const ua = s.user_agent ? s.user_agent.substring(0, 40) + (s.user_agent.length > 40 ? '...' : '') : '-';
+                return `<tr>
+                    <td title="${esc(s.endpoint)}" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.endpoint_short)}</td>
+                    <td title="${esc(s.user_agent || '')}" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(ua)}</td>
+                    <td>${s.created_at ? fmtDt(s.created_at) : '-'}</td>
+                    <td>${s.last_success_at ? fmtDt(s.last_success_at) : '<span style="color:var(--text-dim)">never</span>'}</td>
+                    <td>${failBadge}</td>
+                    <td><button class="btn btn-sm btn-danger" onclick="deletePushSub(${s.id})">🗑️</button></td>
+                </tr>`;
+            }).join('');
+        } catch (e) {
+            console.error('Failed to load push subscriptions:', e);
+        }
+    }
+    window.loadPushSubscriptions = loadPushSubscriptions;
+
+    async function deletePushSub(id) {
+        if (!confirm('Delete this push subscription?')) return;
+        await fetch(`/api/admin/push-subscriptions/${id}`, { method: 'DELETE' });
+        loadPushSubscriptions();
+    }
+    window.deletePushSub = deletePushSub;
+
+    async function deleteAllPushSubs() {
+        if (!confirm('Delete ALL push subscriptions? Users will need to re-subscribe.')) return;
+        await fetch('/api/admin/push-subscriptions/all', { method: 'DELETE' });
+        loadPushSubscriptions();
+    }
+    window.deleteAllPushSubs = deleteAllPushSubs;
+
+    async function deleteStalePushSubs() {
+        if (!confirm('Delete all subscriptions with fail_count > 0?')) return;
+        await fetch('/api/admin/push-subscriptions/stale', { method: 'DELETE' });
+        loadPushSubscriptions();
+    }
+    window.deleteStalePushSubs = deleteStalePushSubs;
 
     // ── Settings ──────────────────────────────────────────────
     const SETTING_META = {

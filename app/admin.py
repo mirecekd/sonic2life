@@ -341,6 +341,8 @@ async def dashboard():
     med_count = conn.execute("SELECT COUNT(*) as c FROM medications WHERE active = 1").fetchone()["c"]
     event_count = conn.execute("SELECT COUNT(*) as c FROM events WHERE active = 1").fetchone()["c"]
     memory_count = conn.execute("SELECT COUNT(*) as c FROM memory").fetchone()["c"]
+    push_count = conn.execute("SELECT COUNT(*) as c FROM push_subscriptions").fetchone()["c"]
+    push_stale = conn.execute("SELECT COUNT(*) as c FROM push_subscriptions WHERE fail_count > 0").fetchone()["c"]
 
     last_log = conn.execute("""
         SELECT ml.taken_at, m.name as medication_name
@@ -371,6 +373,8 @@ async def dashboard():
         "active_medications": med_count,
         "active_events": event_count,
         "memory_entries": memory_count,
+        "push_subscriptions": push_count,
+        "push_stale": push_stale,
         "last_medication_log": dict(last_log) if last_log else None,
         "upcoming_events": [dict(e) for e in upcoming_events],
         "scheduler": {
@@ -498,6 +502,34 @@ async def list_push_subscriptions():
             }
             for r in rows
         ]
+    finally:
+        db.close()
+
+
+@router.delete("/api/admin/push-subscriptions/all")
+async def delete_all_push_subscriptions():
+    """Delete ALL push subscriptions."""
+    db = get_db()
+    try:
+        count = db.execute("SELECT COUNT(*) FROM push_subscriptions").fetchone()[0]
+        db.execute("DELETE FROM push_subscriptions")
+        db.commit()
+        logger.info(f"📲 All push subscriptions deleted via admin ({count} removed)")
+        return {"status": "ok", "deleted": count}
+    finally:
+        db.close()
+
+
+@router.delete("/api/admin/push-subscriptions/stale")
+async def delete_stale_push_subscriptions():
+    """Delete push subscriptions with fail_count > 0."""
+    db = get_db()
+    try:
+        count = db.execute("SELECT COUNT(*) FROM push_subscriptions WHERE fail_count > 0").fetchone()[0]
+        db.execute("DELETE FROM push_subscriptions WHERE fail_count > 0")
+        db.commit()
+        logger.info(f"📲 Stale push subscriptions deleted via admin ({count} removed)")
+        return {"status": "ok", "deleted": count}
     finally:
         db.close()
 
