@@ -111,7 +111,7 @@ function addTranscript(role, text) {
         const div = document.createElement("div");
         div.className = "entry";
         div.dataset.role = role;
-        const labels = { user: "You", assistant: "Assistant", tool: "🔧 Tool" };
+        const labels = { user: "You", assistant: "Sonic2Life", tool: "🔧 Tool" };
         const label = labels[role] || role;
         div.innerHTML = '<div class="role ' + role + '">' + label + "</div><p></p>";
         div.querySelector("p").textContent = text;
