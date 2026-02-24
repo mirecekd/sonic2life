@@ -79,7 +79,8 @@ The entire UI is a single large button. Press it, talk. The AI handles everythin
 │ │ +-- Weather + Forecast                             │   │
 │ │ +-- Vision (auto photo)                            │   │
 │ │ +-- Web Search                                     │   │
-│ │ +-- Emergency Contacts (4)                          │  │
+│ │ +-- Emergency Contacts (4)                         │   │
+│ │ +-- SMS via SNS (1)                                │   │
 │ │ +-- Utilities                                      │   │
 │ └──────────────────┬─────────────────────────────────┘   │
 │                    v                                     │
@@ -144,11 +145,12 @@ The entire UI is a single large button. Press it, talk. The AI handles everythin
 - Multi-stop route optimization ("I need the pharmacy AND the post office")
 - Search for places by name or category
 
-### 📞 Emergency Contacts
+### 📞 Emergency Contacts & SMS
 - **Voice-managed contacts** — add, list, update, remove contacts by voice
 - **Contact details** — name, full name, relationship, phone number
-- **Admin panel management** — full CRUD in the Contacts tab
-- **Foundation for SMS alerts** — contacts ready for Amazon SNS integration
+- **Send SMS via voice** — "Send SMS to Jana that I'm okay" → Amazon SNS delivery
+- **SMS logging** — all sent messages logged with status (sent/failed/error)
+- **Admin panel** — Contacts tab with contact management + Sent SMS Messages table
 
 ### 🌤️ Weather & Forecast (Open-Meteo)
 - **No API key needed** — uses Open-Meteo free API
@@ -427,7 +429,7 @@ Sonic2Life addresses a critical gap in assistive technology:
 - **Medication adherence** — a $300B/year problem in healthcare
 - **Wayfinding assistance** for visually impaired pedestrians
 - **Daily routine management** reducing caregiver burden
-- **Emergency SMS** — send SMS alerts to emergency contacts via Amazon SNS
+- **Emergency calling** — voice-initiated phone calls to emergency contacts
 
 ---
 
