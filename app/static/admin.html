@@ -366,6 +366,13 @@
                     <tbody id="contacts-table"></tbody>
                 </table>
             </div>
+            <div class="card">
+                <h3>&#128172; Sent SMS Messages</h3>
+                <table>
+                    <thead><tr><th>Contact</th><th>Phone</th><th>Message</th><th>Status</th><th>SNS ID</th><th>Sent At</th><th>Actions</th></tr></thead>
+                    <tbody id="sms-log-table"></tbody>
+                </table>
+            </div>
         </div>
     </main>
 
@@ -807,6 +814,7 @@
     
         // ── Emergency Contacts ──────────────────────────────────
         async function loadContacts() {
+            loadSmsLog();  // also load SMS log when contacts tab opens
             const res = await fetch('/api/admin/contacts');
             const data = await res.json();
             const tbody = document.getElementById('contacts-table');
@@ -846,6 +854,43 @@
             if (!confirm(`Delete contact "${name}"?`)) return;
             await fetch(`/api/admin/contacts/${id}`, {method: 'DELETE'});
             loadContacts();
+        }
+
+        
+        // ── SMS Log ─────────────────────────────────────────────
+        async function loadSmsLog() {
+            const res = await fetch('/api/admin/sms-log');
+            const data = await res.json();
+            const tbody = document.getElementById('sms-log-table');
+            if (!data.sms_log || data.sms_log.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#888">No SMS messages sent yet</td></tr>';
+                return;
+            }
+            tbody.innerHTML = data.sms_log.map(s => {
+                const statusBadge = s.status === 'sent'
+                    ? '<span style="color:#27ae60;font-weight:bold">✅ sent</span>'
+                    : s.status === 'failed'
+                    ? `<span style="color:#e74c3c;font-weight:bold">❌ failed</span><br><small>${s.error_detail || ''}</small>`
+                    : `<span style="color:#f39c12;font-weight:bold">⚠️ ${s.status}</span><br><small>${s.error_detail || ''}</small>`;
+                return `
+                <tr>
+                    <td><strong>${s.contact_name}</strong></td>
+                    <td>${s.phone}</td>
+                    <td style="max-width:300px;word-wrap:break-word">${s.message}</td>
+                    <td>${statusBadge}</td>
+                    <td><small>${s.sns_message_id || '-'}</small></td>
+                    <td>${s.created_at || '-'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" onclick="deleteSmsLog(${s.id})">Delete</button>
+                    </td>
+                </tr>
+            `}).join('');
+        }
+
+        async function deleteSmsLog(id) {
+            if (!confirm('Delete this SMS log entry?')) return;
+            await fetch(`/api/admin/sms-log/${id}`, {method: 'DELETE'});
+            loadSmsLog();
         }
 
         </script>

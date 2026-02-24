@@ -630,6 +630,37 @@ async def delete_contact(contact_id: int):
     logger.info(f"📞 Contact deleted: id={contact_id}")
     return {"status": "ok", "id": contact_id}
 
+@router.get("/api/admin/sms-log")
+async def list_sms_log():
+    """Return all SMS log entries."""
+    conn = get_db()
+    rows = conn.execute(
+        """SELECT id, contact_name, phone, message, sns_message_id, status, error_detail, created_at
+           FROM sms_log ORDER BY created_at DESC LIMIT 100"""
+    ).fetchall()
+    conn.close()
+    return {
+        "sms_log": [
+            {"id": r["id"], "contact_name": r["contact_name"], "phone": r["phone"],
+             "message": r["message"], "sns_message_id": r["sns_message_id"],
+             "status": r["status"], "error_detail": r["error_detail"],
+             "created_at": r["created_at"]}
+            for r in rows
+        ]
+    }
+
+
+@router.delete("/api/admin/sms-log/{log_id}")
+async def delete_sms_log_entry(log_id: int):
+    """Delete an SMS log entry."""
+    conn = get_db()
+    conn.execute("DELETE FROM sms_log WHERE id = ?", (log_id,))
+    conn.commit()
+    conn.close()
+    return {"status": "ok", "id": log_id}
+
+
+
 def _human_size(size_bytes: int) -> str:
     """Convert bytes to human-readable size."""
     for unit in ["B", "KB", "MB", "GB"]:

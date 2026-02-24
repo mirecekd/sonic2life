@@ -120,6 +120,19 @@ def _init_tables(conn: sqlite3.Connection):
             active INTEGER DEFAULT 1,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+        -- SMS log (sent messages via Amazon SNS)
+        CREATE TABLE IF NOT EXISTS sms_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            contact_id INTEGER,
+            contact_name TEXT NOT NULL,
+            phone TEXT NOT NULL,
+            message TEXT NOT NULL,
+            sns_message_id TEXT,
+            status TEXT DEFAULT 'sent',
+            error_detail TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (contact_id) REFERENCES emergency_contacts(id)
+        );
     """)
     _seed_default_settings(conn)
     conn.commit()

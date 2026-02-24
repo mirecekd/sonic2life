@@ -31,7 +31,7 @@ TOOL_SPECS = [
                 "Ask a specialized AI research agent to help with complex tasks. "
                 "The agent can: search the web (DuckDuckGo), search AWS documentation, "
                 "perform calculations, get current date/time, call AWS services, "
-                "make HTTP API requests, manage medications and schedule, manage emergency contacts, "
+                "make HTTP API requests, manage medications and schedule, manage emergency contacts, send SMS to emergency contacts, "
                 "manage calendar events and appointments (add, cancel, reschedule, "
                 "get today's schedule, get upcoming events), remember user preferences, "
                 "analyze photos from the user's camera (identify objects, read text, "
@@ -121,6 +121,7 @@ def _build_agent_system_prompt() -> str:
         "Emergency Contacts: add_emergency_contact(name, phone, fullname, relationship), "
         "get_emergency_contacts(name), remove_emergency_contact(name), "
         "update_emergency_contact(name, new_phone, new_fullname, new_relationship)\n"
+        "SMS: send_emergency_sms(contact_name, message) – send SMS to an emergency contact via Amazon SNS\n"
         "Weather: get_weather(lat, lon) – current weather + hourly/daily forecast (Open-Meteo, no API key). Use GPS from [CONTEXT]. Can answer about today, tomorrow, next days.\n"
         "Web search: web_search(query, max_results) – search the internet for current info\n"
         "Vision: analyze_photo(question) – analyze the user's camera photo using Nova 2 Lite vision\n"
@@ -238,6 +239,13 @@ def _create_strands_agent():
         logger.info("  ✅ emergency contacts tools (4)")
     except Exception as e:
         logger.warning(f"  ⚠️ emergency contacts tools not available: {e}")
+
+    try:
+        from app.tools.sms import send_emergency_sms
+        tools.append(send_emergency_sms)
+        logger.info("  ✅ send_emergency_sms (SNS)")
+    except Exception as e:
+        logger.warning(f"  ⚠️ send_emergency_sms not available: {e}")
 
     try:
         from app.tools.events import (
