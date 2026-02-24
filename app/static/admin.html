@@ -410,6 +410,9 @@
         });
     });
 
+    // Load dashboard on initial page load
+    loadSection('dashboard');
+
     function loadSection(tab) {
         if (tab === 'dashboard') loadDashboard();
         else if (tab === 'settings') loadSettings();
@@ -417,6 +420,7 @@
         else if (tab === 'events') { loadEvents(); loadEventNotifications(); }
         else if (tab === 'memory') loadMemory();
         else if (tab === 'files') loadFiles();
+        else if (tab === 'contacts') { loadContacts(); loadSmsLog(); }
     }
 
     // ── Dashboard ─────────────────────────────────────────────
@@ -428,6 +432,8 @@
             <div class="stat-card"><div class="num">${d.memory_entries}</div><div class="label">Memory Entries</div></div>
             <div class="stat-card"><div class="num"><span class="badge ${d.scheduler.enabled === 'true' ? 'badge-on' : 'badge-off'}">${d.scheduler.enabled === 'true' ? 'ON' : 'OFF'}</span></div><div class="label">Scheduler (every ${d.scheduler.interval_minutes} min)</div></div>
             <div class="stat-card"><div class="num">${d.push_subscriptions}${d.push_stale > 0 ? ' <span style="font-size:0.7em;color:var(--accent)">('+d.push_stale+' stale)</span>' : ''}</div><div class="label">Push Subscriptions</div></div>
+            <div class="stat-card"><div class="num">${d.emergency_contacts || 0}</div><div class="label">Emergency Contacts</div></div>
+            <div class="stat-card"><div class="num">${d.sms_sent || 0}</div><div class="label">SMS Sent</div></div>
         `;
         const ul = document.getElementById('dashboard-upcoming');
         if (!d.upcoming_events.length) {
@@ -814,7 +820,6 @@
     
         // ── Emergency Contacts ──────────────────────────────────
         async function loadContacts() {
-            loadSmsLog();  // also load SMS log when contacts tab opens
             const res = await fetch('/api/admin/contacts');
             const data = await res.json();
             const tbody = document.getElementById('contacts-table');

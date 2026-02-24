@@ -343,6 +343,8 @@ async def dashboard():
     memory_count = conn.execute("SELECT COUNT(*) as c FROM memory").fetchone()["c"]
     push_count = conn.execute("SELECT COUNT(*) as c FROM push_subscriptions").fetchone()["c"]
     push_stale = conn.execute("SELECT COUNT(*) as c FROM push_subscriptions WHERE fail_count > 0").fetchone()["c"]
+    contacts_count = conn.execute("SELECT COUNT(*) as c FROM emergency_contacts WHERE active = 1").fetchone()["c"]
+    sms_sent = conn.execute("SELECT COUNT(*) as c FROM sms_log").fetchone()["c"]
 
     last_log = conn.execute("""
         SELECT ml.taken_at, m.name as medication_name
@@ -375,6 +377,8 @@ async def dashboard():
         "memory_entries": memory_count,
         "push_subscriptions": push_count,
         "push_stale": push_stale,
+        "emergency_contacts": contacts_count,
+        "sms_sent": sms_sent,
         "last_medication_log": dict(last_log) if last_log else None,
         "upcoming_events": [dict(e) for e in upcoming_events],
         "scheduler": {
