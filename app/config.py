@@ -69,3 +69,9 @@ os.makedirs(DATA_DIR, exist_ok=True)
 
 # Database (stored in DATA_DIR for persistence across container restarts)
 DATABASE_PATH = os.getenv("DATABASE_PATH", os.path.join(DATA_DIR, "sonic2life.db"))
+
+# ── Authentication ──────────────────────────────────────────
+# Set both to enable app-level auth (replaces nginx Basic Auth)
+# Leave empty to disable auth (open access)
+AUTH_USERNAME = os.getenv("AUTH_USERNAME", "")
+AUTH_PASSWORD = os.getenv("AUTH_PASSWORD", "")

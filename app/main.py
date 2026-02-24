@@ -5,13 +5,17 @@ import json
 import logging
 from fastapi import FastAPI, WebSocket, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, StreamingResponse
 from pathlib import Path
 
 from pydantic import BaseModel
 from typing import Optional
 
+from fastapi.responses import FileResponse, StreamingResponse, HTMLResponse, RedirectResponse
 from app.config import HOST, PORT
+from app.auth import (
+    AuthMiddleware, verify_credentials, create_session_token,
+    is_auth_enabled, COOKIE_NAME, SESSION_MAX_AGE,
+)
 from app.agent import get_tool_specs, handle_tool_call, get_mcp_runner
 from app.websocket_handler import handle_websocket
 from app.admin import router as admin_router
@@ -36,6 +40,9 @@ logging.basicConfig(
 )
 
 app = FastAPI(title="Sonic2Life", description="Voice-first life assistant for seniors")
+
+# Auth middleware (cookie-based, PWA-compatible)
+app.add_middleware(AuthMiddleware)
 
 # Mount admin panel routes
 app.include_router(admin_router)
@@ -78,6 +85,55 @@ async def index():
 async def health():
     """Health check endpoint."""
     return {"status": "ok", "service": "sonic2life"}
+
+# ── Authentication ──────────────────────────────────────────
+logger = logging.getLogger(__name__)
+
+
+@app.get("/login")
+async def login_page():
+    """Serve the login page."""
+    if not is_auth_enabled():
+        return RedirectResponse("/")
+    return FileResponse(static_dir / "login.html")
+
+
+@app.post("/login")
+async def login(request: Request):
+    """Handle login form submission."""
+    if not is_auth_enabled():
+        return RedirectResponse("/", status_code=302)
+
+    form = await request.form()
+    username = form.get("username", "")
+    password = form.get("password", "")
+
+    if verify_credentials(username, password):
+        token = create_session_token(username)
+        next_url = request.query_params.get("next", "/")
+        response = RedirectResponse(next_url, status_code=302)
+        response.set_cookie(
+            key=COOKIE_NAME,
+            value=token,
+            max_age=SESSION_MAX_AGE,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+        )
+        logger.info(f"✅ User '{username}' logged in")
+        return response
+    else:
+        logger.warning(f"❌ Failed login attempt for '{username}'")
+        return RedirectResponse("/login?error=1", status_code=302)
+
+
+@app.get("/logout")
+async def logout():
+    """Clear session cookie and redirect to login."""
+    response = RedirectResponse("/login")
+    response.delete_cookie(COOKIE_NAME)
+    return response
+
 
 
 @app.websocket("/ws/audio")
