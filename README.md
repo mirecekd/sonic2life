@@ -112,6 +112,7 @@ The entire UI is a single large button. Press it, talk. The AI handles everythin
 | **Amazon Nova 2 Lite** (Bedrock) | Agent reasoning model — powers the Strands Agent for complex tool orchestration |
 | **Amazon Location Service** (via MCP) | Reverse geocoding, place search, nearby POIs, route calculation, waypoint optimization |
 | **AWS Knowledge Base** (via MCP) | General knowledge retrieval for answering user questions |
+| **Amazon SNS** | Emergency SMS delivery to contacts — voice-triggered via `send_emergency_sms` tool |
 
 ---
 
