@@ -167,6 +167,7 @@
         <button data-tab="events">&#128197; Events</button>
         <button data-tab="memory">&#129504; Memory</button>
         <button data-tab="files">&#128193; Files</button>
+        <button data-tab="contacts">&#128222; Contacts</button>
     </nav>
 
     <main>
@@ -342,6 +343,27 @@
                 <table>
                     <thead><tr><th>Key</th><th>Value</th><th>Category</th><th>Updated</th><th>Actions</th></tr></thead>
                     <tbody id="mem-table"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ── Emergency Contacts ──────────────────────────────── -->
+        <div id="sec-contacts" class="section">
+            <div class="card">
+                <h3>&#128222; Add Emergency Contact</h3>
+                <div class="form-row">
+                    <input id="ct-name" placeholder="Short name (e.g. Jana)" />
+                    <input id="ct-fullname" placeholder="Full name (e.g. Jana Novakova)" />
+                    <input id="ct-relationship" placeholder="Relationship (e.g. daughter)" />
+                    <input id="ct-phone" placeholder="Phone (e.g. +420123456789)" />
+                    <button class="btn btn-primary" onclick="addContact()">+ Add Contact</button>
+                </div>
+            </div>
+            <div class="card">
+                <h3>&#128203; Emergency Contacts</h3>
+                <table>
+                    <thead><tr><th>Name</th><th>Full Name</th><th>Relationship</th><th>Phone</th><th>Created</th><th>Actions</th></tr></thead>
+                    <tbody id="contacts-table"></tbody>
                 </table>
             </div>
         </div>
@@ -782,6 +804,50 @@
 
     // ── Init ──────────────────────────────────────────────────
     loadDashboard();
-    </script>
+    
+        // ── Emergency Contacts ──────────────────────────────────
+        async function loadContacts() {
+            const res = await fetch('/api/admin/contacts');
+            const data = await res.json();
+            const tbody = document.getElementById('contacts-table');
+            tbody.innerHTML = data.contacts.filter(c => c.active).map(c => `
+                <tr>
+                    <td><strong>${c.name}</strong></td>
+                    <td>${c.fullname || '-'}</td>
+                    <td>${c.relationship || '-'}</td>
+                    <td>${c.phone}</td>
+                    <td>${c.created_at || '-'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" onclick="deleteContact(${c.id}, '${c.name}')">Delete</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function addContact() {
+            const name = document.getElementById('ct-name').value.trim();
+            const fullname = document.getElementById('ct-fullname').value.trim();
+            const relationship = document.getElementById('ct-relationship').value.trim();
+            const phone = document.getElementById('ct-phone').value.trim();
+            if (!name || !phone) { alert('Name and phone are required'); return; }
+            await fetch('/api/admin/contacts', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name, fullname, relationship, phone})
+            });
+            document.getElementById('ct-name').value = '';
+            document.getElementById('ct-fullname').value = '';
+            document.getElementById('ct-relationship').value = '';
+            document.getElementById('ct-phone').value = '';
+            loadContacts();
+        }
+
+        async function deleteContact(id, name) {
+            if (!confirm(`Delete contact "${name}"?`)) return;
+            await fetch(`/api/admin/contacts/${id}`, {method: 'DELETE'});
+            loadContacts();
+        }
+
+        </script>
 </body>
 </html>

@@ -109,6 +109,17 @@ def _init_tables(conn: sqlite3.Connection):
             active INTEGER DEFAULT 1,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+
+        -- Emergency contacts
+        CREATE TABLE IF NOT EXISTS emergency_contacts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,           -- short name for voice (e.g. 'Jana')
+            fullname TEXT,                -- full name (e.g. 'Jana Novakova')
+            relationship TEXT,            -- e.g. 'daughter', 'doctor', 'neighbor'
+            phone TEXT NOT NULL,          -- phone number (e.g. '+420123456789')
+            active INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
     """)
     _seed_default_settings(conn)
     conn.commit()

@@ -31,7 +31,7 @@ TOOL_SPECS = [
                 "Ask a specialized AI research agent to help with complex tasks. "
                 "The agent can: search the web (DuckDuckGo), search AWS documentation, "
                 "perform calculations, get current date/time, call AWS services, "
-                "make HTTP API requests, manage medications and schedule, "
+                "make HTTP API requests, manage medications and schedule, manage emergency contacts, "
                 "manage calendar events and appointments (add, cancel, reschedule, "
                 "get today's schedule, get upcoming events), remember user preferences, "
                 "analyze photos from the user's camera (identify objects, read text, "
@@ -118,6 +118,9 @@ def _build_agent_system_prompt() -> str:
         "add_event(title, event_time, description, reminder_minutes, morning_brief), "
         "cancel_event(event_title), update_event_time(event_title, new_time)\n"
         "Memory: remember(key, value, category), recall(key, category), forget(key)\n"
+        "Emergency Contacts: add_emergency_contact(name, phone, fullname, relationship), "
+        "get_emergency_contacts(name), remove_emergency_contact(name), "
+        "update_emergency_contact(name, new_phone, new_fullname, new_relationship)\n"
         "Weather: get_weather(lat, lon) – current weather + hourly/daily forecast (Open-Meteo, no API key). Use GPS from [CONTEXT]. Can answer about today, tomorrow, next days.\n"
         "Web search: web_search(query, max_results) – search the internet for current info\n"
         "Vision: analyze_photo(question) – analyze the user's camera photo using Nova 2 Lite vision\n"
@@ -218,6 +221,23 @@ def _create_strands_agent():
         logger.info("  ✅ memory tools (3)")
     except Exception as e:
         logger.warning(f"  ⚠️ memory tools not available: {e}")
+
+    try:
+        from app.tools.contacts import (
+            add_emergency_contact,
+            get_emergency_contacts,
+            remove_emergency_contact,
+            update_emergency_contact,
+        )
+        tools.extend([
+            add_emergency_contact,
+            get_emergency_contacts,
+            remove_emergency_contact,
+            update_emergency_contact,
+        ])
+        logger.info("  ✅ emergency contacts tools (4)")
+    except Exception as e:
+        logger.warning(f"  ⚠️ emergency contacts tools not available: {e}")
 
     try:
         from app.tools.events import (

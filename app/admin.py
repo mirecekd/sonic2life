@@ -549,6 +549,87 @@ async def delete_push_subscription(sub_id: int):
 
 # ── Helpers ───────────────────────────────────────────────────────────
 
+
+
+# ── Emergency Contacts API ────────────────────────────────────────
+
+@router.get("/api/admin/contacts")
+async def list_contacts():
+    """Return all emergency contacts."""
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT id, name, fullname, relationship, phone, active, created_at FROM emergency_contacts ORDER BY name"
+    ).fetchall()
+    conn.close()
+    return {
+        "contacts": [
+            {"id": r["id"], "name": r["name"], "fullname": r["fullname"], "relationship": r["relationship"],
+             "phone": r["phone"], "active": r["active"], "created_at": r["created_at"]}
+            for r in rows
+        ]
+    }
+
+
+class ContactCreate(BaseModel):
+    name: str
+    phone: str
+    fullname: str = ""
+    relationship: str = ""
+
+
+@router.post("/api/admin/contacts")
+async def create_contact(body: ContactCreate):
+    """Create a new emergency contact."""
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO emergency_contacts (name, fullname, relationship, phone) VALUES (?, ?, ?, ?)",
+        (body.name, body.fullname, body.relationship, body.phone),
+    )
+    conn.commit()
+    conn.close()
+    logger.info(f"📞 Contact created: {body.name}")
+    return {"status": "ok", "name": body.name}
+
+
+class ContactUpdate(BaseModel):
+    name: Optional[str] = None
+    fullname: Optional[str] = None
+    relationship: Optional[str] = None
+    phone: Optional[str] = None
+
+
+@router.put("/api/admin/contacts/{contact_id}")
+async def update_contact(contact_id: int, body: ContactUpdate):
+    """Update an emergency contact."""
+    conn = get_db()
+    updates = []
+    params = []
+    for field in ["name", "fullname", "relationship", "phone"]:
+        val = getattr(body, field)
+        if val is not None:
+            updates.append(f"{field} = ?")
+            params.append(val)
+    if not updates:
+        conn.close()
+        return {"status": "error", "message": "No fields to update"}
+    params.append(contact_id)
+    conn.execute(f"UPDATE emergency_contacts SET {', '.join(updates)} WHERE id = ?", params)
+    conn.commit()
+    conn.close()
+    logger.info(f"📞 Contact updated: id={contact_id}")
+    return {"status": "ok", "id": contact_id}
+
+
+@router.delete("/api/admin/contacts/{contact_id}")
+async def delete_contact(contact_id: int):
+    """Delete an emergency contact."""
+    conn = get_db()
+    conn.execute("DELETE FROM emergency_contacts WHERE id = ?", (contact_id,))
+    conn.commit()
+    conn.close()
+    logger.info(f"📞 Contact deleted: id={contact_id}")
+    return {"status": "ok", "id": contact_id}
+
 def _human_size(size_bytes: int) -> str:
     """Convert bytes to human-readable size."""
     for unit in ["B", "KB", "MB", "GB"]:
