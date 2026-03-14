@@ -38,6 +38,10 @@ Traditional apps with small text, complex menus, and visual interfaces are **use
 
 The entire UI is a single large button. Press it, talk. The AI handles everything else.
 
+## Demo video
+
+[![Sonic2Life](https://img.youtube.com/vi/-CDYgwQ18m4/0.jpg)](https://youtu.be/-CDYgwQ18m4)
+
 ---
 
 ## 🏗️ Architecture
