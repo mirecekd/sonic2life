@@ -42,6 +42,11 @@ The entire UI is a single large button. Press it, talk. The AI handles everythin
 
 [![Sonic2Life](https://img.youtube.com/vi/-CDYgwQ18m4/0.jpg)](https://youtu.be/-CDYgwQ18m4)
 
+
+## AWS Builder Community blog post
+
+[Sonic2Life: A Voice-First AI Assistant](https://builder.aws.com/content/2iIWHmMOUgQgOb4cGahigZDCVKw/sonic2life-a-voice-first-ai-assistant)
+
 ---
 
 ## 🏗️ Architecture
